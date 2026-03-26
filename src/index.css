@@ -1,0 +1,23 @@
+@font-face{
+  font-family: "roboto";
+  src: url('./assets/Roboto-Regular.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'roboto-light';
+  src: url('./assets/Roboto-Light.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+*,html, body {
+  font-family: 'roboto', sans-serif;
+  padding:0;
+  margin: 0;
+}
+
+.ant-dropdown .ant-dropdown-menu{
+  box-shadow: none !important;
+}
