@@ -21,6 +21,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import NavBar from "../components/Navbar";
+import Classes from "../pages/admin/classes";
 import Dashboard from "../pages/admin/dashboard";
 import Departments from "../pages/admin/departments";
 import Employee from "../pages/admin/Employee";
@@ -98,7 +99,7 @@ function App() {
       "Turmas & Classes",
       "/turmas-e-classes",
       <BiSpreadsheet size={20} />,
-      <>Turmas & Classes</>,
+      <Classes />,
     ),
     getItem(
       "Disciplinas",

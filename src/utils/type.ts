@@ -93,6 +93,24 @@ export interface IStudent extends IUser {
   financialStatus: string;
 }
 
+export interface ILevel extends Base {
+  name: string;
+  description: string;
+  status: boolean;
+  sections: ISection;
+  subjectsOnLevel: any;
+  enrollments: any;
+}
+
+export interface ISection extends Base {
+  name: string;
+  levelId: string;
+  capacity: number;
+  status: boolean;
+  enrollments: any; // IEnrollements
+  attendace: any; // IAttendance
+}
+
 export interface IClass extends Base {
   cycle: string;
   quantity: number;
