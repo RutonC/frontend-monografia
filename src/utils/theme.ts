@@ -45,6 +45,10 @@ const theme: ThemeConfig = {
       subMenuItemSelectedColor: "#cfc7ef",
       popupBg: "#3e37bc",
     },
+    Typography: {
+      titleMarginBottom: 0,
+      titleMarginTop: 0,
+    },
   },
 };
 

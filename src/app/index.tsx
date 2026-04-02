@@ -29,6 +29,8 @@ import Students from "../pages/admin/students";
 import AddNewStudent from "../pages/admin/students/add-new";
 import Login from "../pages/auth/login";
 import NotFound from "../pages/notfound";
+import Teacher from "../pages/teacher";
+import TeacherProfile from "../pages/teacher/Profile";
 import { useAuthStore } from "../store/authStore";
 import { getItem } from "../utils/getItem";
 import theme from "../utils/theme";
@@ -87,7 +89,7 @@ function App() {
       "Professores",
       "/professores",
       <FaChalkboardTeacher size={20} />,
-      <Employee />,
+      <Teacher />,
     ),
     getItem(
       "Funcionários",
@@ -145,6 +147,10 @@ function App() {
   const getSelectedKey = (path: string) => {
     if (path.startsWith("/alunos/adicionar-novo-aluno")) {
       return "/alunos/adicionar-novo-aluno";
+    }
+
+    if (path.startsWith("/professores/perfil")) {
+      return "/professores/perfil";
     }
 
     return path; // fallback normal
@@ -268,6 +274,19 @@ function App() {
                         className={`${styles.contentLayout} ${collapsed ? styles.folded : ""}`}
                       >
                         <AddNewStudent />
+                      </Content>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  key={"perfil-professor"}
+                  path="/professores/perfil"
+                  element={
+                    <ProtectedRoute>
+                      <Content
+                        className={`${styles.contentLayout} ${collapsed ? styles.folded : ""}`}
+                      >
+                        <TeacherProfile />
                       </Content>
                     </ProtectedRoute>
                   }
