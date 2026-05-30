@@ -11,7 +11,7 @@ import {
   AlertOutlined,
   CalendarOutlined,
   HomeOutlined,
-  UserOutlined
+  UserOutlined,
 } from "@ant-design/icons";
 import {
   Avatar,
@@ -26,7 +26,7 @@ import {
   Tabs,
   Tag,
   Timeline,
-  Typography
+  Typography,
 } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -392,8 +392,8 @@ export default function GuardianStudentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data: gradesData } = useStudentGrades(id ?? "");
-  const { data: attendanceData } = useStudentAttendance(id ?? "");
+  // const { data: gradesData } = useStudentGrades(id ?? "");
+  // const { data: attendanceData } = useStudentAttendance(id ?? "");
   const { data: invoicesData } = useStudentInvoices(id ?? "");
 
   const overdueInvoices =

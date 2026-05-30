@@ -1,13 +1,13 @@
 import {
   DashboardOutlined,
   TeamOutlined,
-  UserOutlined
+  UserOutlined,
 } from "@ant-design/icons";
 import { Avatar, Layout, Menu, Typography } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 
-const { Sider, Content, Header } = Layout;
+const { Sider, Content } = Layout;
 
 export default function GuardianLayout({
   children,

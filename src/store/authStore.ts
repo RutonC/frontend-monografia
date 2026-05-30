@@ -131,7 +131,7 @@ export { api };
 // ─────────────────────────────────────────────
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -145,7 +145,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const res = await api.post("auth/login", { identifier, password });
-          const { accessToken, user } = res.data;
+          const { accessToken } = res.data;
 
           localStorage.setItem("__amsCheck", accessToken);
 

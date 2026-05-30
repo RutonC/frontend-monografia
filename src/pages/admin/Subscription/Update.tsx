@@ -21,13 +21,9 @@ import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import { Input } from "../../../components/Input";
 import { useFetch, useMutationPatch } from "../../../utils/fetch";
 import { intlDate } from "../../../utils/intl";
-import type {
-  IAcademicYear,
-  IEnrollment,
-  ILevel
-} from "../../../utils/type";
+import type { IAcademicYear, IEnrollment, ILevel } from "../../../utils/type";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
   APPROVED: { color: "success", label: "Aprovado" },

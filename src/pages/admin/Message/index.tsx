@@ -33,11 +33,11 @@ import {
   Tabs,
   Tag,
   Typography,
-  message
+  message,
 } from "antd";
 import { useState } from "react";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const TYPE_COLOR: Record<string, string> = {
   TEACHER: "blue",
