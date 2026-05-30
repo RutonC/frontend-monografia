@@ -1,0 +1,50 @@
+:root {
+  // Brand
+  --lg-mc-50: #ede8f9;
+  --lg-mc-100: #cfc7ef;
+  --lg-mc-200: #b0a2e5;
+  --lg-mc-300: #8f7bdc;
+  --lg-mc-400: #755fd4;
+  --lg-mc-500: #5944cb;
+  --lg-mc-600: #4f3fc5;
+  --lg-mc-700: #3e37bc;
+  --lg-mc-800: #2e31b4;
+  --lg-mc-900: #0026a7;
+
+  --lg-primary: #4f3fc5; // cor exacta do Logaco
+  --lg-primary-hover: #0026a7;
+
+  // Neutrals
+  --lg-ink-900: #0f1020;
+  --lg-ink-800: #1c1d33;
+  --lg-ink-700: #2d2e48;
+  --lg-ink-600: #4b4c68;
+  --lg-ink-500: #6b6d89;
+  --lg-ink-400: #9b9db5;
+  --lg-ink-300: #c7c9db;
+  --lg-ink-200: #e4e5ef;
+  --lg-ink-100: #f1f2f8;
+  --lg-ink-50: #fafafc;
+
+  // Semantic
+  --lg-heart: #ef4444;
+  --lg-heart-bg: #fee2e2;
+  --lg-success: #10b981;
+  --lg-warn: #f59e0b;
+
+  // Shadows
+  --lg-sh-sm:
+    0 1px 2px rgba(17, 18, 40, 0.06), 0 1px 1px rgba(17, 18, 40, 0.04);
+  --lg-sh-md:
+    0 4px 12px rgba(17, 18, 40, 0.07), 0 2px 4px rgba(17, 18, 40, 0.04);
+  --lg-sh-lg:
+    0 12px 28px rgba(17, 18, 40, 0.1), 0 4px 10px rgba(17, 18, 40, 0.05);
+  --lg-sh-purple: 0 10px 24px rgba(103, 37, 208, 0.22);
+
+  // Radius
+  --lg-r-sm: 8px;
+  --lg-r-md: 12px;
+  --lg-r-lg: 15px; // alinhado ao borderRadius do Ant
+  --lg-r-xl: 24px;
+  --lg-r-pill: 999px;
+}

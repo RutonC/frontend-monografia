@@ -1,0 +1,69 @@
+/* tabs/tabs.module.scss */
+
+/* ── Subject Card ────────────────────────────── */
+.subjectCard {
+  height: 100%;
+  border-radius: 10px;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(79, 63, 197, 0.12);
+    transform: translateY(-2px);
+  }
+}
+
+.subjectIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(79, 63, 197, 0.1);
+  color: #4f3fc5;
+  font-size: 18px;
+}
+
+/* ── Section Card ────────────────────────────── */
+.sectionCard {
+  height: 100%;
+  border-radius: 10px;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(8, 145, 178, 0.12);
+    transform: translateY(-2px);
+  }
+}
+
+.sectionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(8, 145, 178, 0.1);
+  color: #0891b2;
+  font-size: 18px;
+}
+
+/* ── Schedule Card ───────────────────────────── */
+.scheduleCard {
+  border-radius: 10px;
+  height: 100%;
+
+  :global(.ant-card-head) {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 0 12px;
+    min-height: 44px;
+  }
+}
+
+.scheduleItem {
+  padding-bottom: 4px;
+}

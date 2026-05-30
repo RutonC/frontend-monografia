@@ -1,5 +1,3 @@
-@import "../styles/colors";
-
 $header-height-menu: 4.375rem;
 $white: #fff;
 $aside-width-folded: 2.75rem;
@@ -9,7 +7,7 @@ $header-height: 1.375rem;
 $aside-width-folded: 3.75rem;
 .mainLayout {
   .aside {
-    background-color: $primary;
+    background-color: var(--lg-primary);
 
     z-index: 507;
     position: fixed;
@@ -26,8 +24,8 @@ $aside-width-folded: 3.75rem;
       padding 0.25s ease;
 
     .menu {
-      background-color: $primary;
-      scrollbar-color: $primary-light;
+      background-color: var(--lg-primary);
+      scrollbar-color: var(--lg-mc-300);
       border: none;
       /* Chrome, Edge, Safari */
       &::-webkit-scrollbar {
@@ -36,7 +34,7 @@ $aside-width-folded: 3.75rem;
       height: 100% !important;
 
       &::-webkit-scrollbar-thumb {
-        background-color: $primary-light;
+        background-color: var(--lg-mc-300);
         border-radius: 8px;
       }
 
@@ -46,7 +44,7 @@ $aside-width-folded: 3.75rem;
     }
 
     &.collapsed {
-      background-color: $primary;
+      background-color: var(--lg-primary);
       flex: 0 0 $aside-width-folded !important;
       max-width: $aside-width-folded !important;
       min-width: $aside-width-folded !important;

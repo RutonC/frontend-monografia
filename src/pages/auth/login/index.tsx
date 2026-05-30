@@ -1,14 +1,33 @@
-import { Button, Card, Flex, Form, Input, Typography } from "antd";
+import { LockOutlined, UserOutlined } from "@ant-design/icons";
+import { Alert, Button, Card, Flex, Form, Input, Typography } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 
 function Login() {
   const [form] = Form.useForm();
-  const { login, error, isLoading } = useAuthStore();
+  const navigate = useNavigate();
+  const { login, error, isLoading, isAuthenticated, clearError } =
+    useAuthStore();
 
-  const handleSubmit = async (values: any) => {
-    await login(values);
+  // Redireciona se já estiver autenticado
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleSubmit = async (values: {
+    identifier: string;
+    password: string;
+  }) => {
+    try {
+      await login(values);
+      navigate("/", { replace: true });
+    } catch {
+      // O erro já está no store — não precisa de tratamento aqui
+    }
   };
 
   return (
@@ -34,42 +53,68 @@ function Login() {
           justifyContent: "center",
         }}
       >
+        <Typography.Title level={3} style={{ marginBottom: 32 }}>
+          Entrar no sistema
+        </Typography.Title>
+
+        {error && (
+          <Alert
+            message={error}
+            type="error"
+            showIcon
+            closable
+            onClose={clearError}
+            style={{ marginBottom: 20 }}
+          />
+        )}
+
         <Form
           layout="vertical"
           name="login_form"
           requiredMark={false}
           form={form}
+          onFinish={handleSubmit}
         >
-          <Form.Item label="Nome do utilizador" name="identifier" required>
-            <Input />
+          <Form.Item
+            label="Identificador"
+            name="identifier"
+            rules={[{ required: true, message: "Identificador obrigatório." }]}
+          >
+            <Input
+              prefix={<UserOutlined style={{ color: "#bfbfbf" }} />}
+              placeholder="Ex: PROF-2024-001"
+              autoComplete="username"
+            />
           </Form.Item>
 
-          <Form.Item label="Palavra-passe" name="password" required>
-            <Input.Password />
+          <Form.Item
+            label="Palavra-passe"
+            name="password"
+            rules={[{ required: true, message: "Palavra-passe obrigatória." }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
           </Form.Item>
+
           <Button
             type="primary"
             htmlType="submit"
-            style={{ width: "100%" }}
+            style={{ width: "100%", marginTop: 8 }}
             loading={isLoading}
-            onClick={() =>
-              form.validateFields().then((values) => handleSubmit(values))
-            }
           >
             Entrar
           </Button>
-          {error?.data?.success === false && (
-            <Typography.Text type="danger">
-              {error?.data?.message}
-            </Typography.Text>
-          )}
         </Form>
       </Card>
+
       <Flex justify="space-between" style={{ width: "70%", marginTop: 4 }}>
         <span style={{ color: "#757575" }}>
           Copyright 2025. AMS. Todos os direitos reservados.
         </span>
-        <Link to={"/aviso-legal"}>Aviso Legal</Link>
+        <Link to="/aviso-legal">Aviso Legal</Link>
       </Flex>
     </Content>
   );

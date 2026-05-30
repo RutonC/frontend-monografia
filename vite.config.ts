@@ -12,4 +12,15 @@ export default defineConfig({
       "@/pages": path.resolve(__dirname, "./src/pages"),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // Injectado automaticamente em TODOS os ficheiros .scss
+        additionalData: `
+          @use "@/assets/styles/_variables.scss" as *;
+          @use "@/assets/styles/_mixins.scss" as *;
+        `,
+      },
+    },
+  },
 });

@@ -1,3 +1,6 @@
+.flex {
+  width: 100% !important;
+}
 .filterContainer {
   .searchInput {
     flex: 1;
@@ -8,7 +11,7 @@
       transition: all 0.3s ease;
 
       &:hover {
-        border-color: #1890ff;
+        border-color: var(--lg-primary);
       }
 
       &:focus-within {

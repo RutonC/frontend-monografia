@@ -8,7 +8,6 @@ import {
   BiSearch,
 } from "react-icons/bi";
 import { useAuthStore } from "../store/authStore";
-import { baseURL } from "../utils/constants";
 import DropdownUser from "./DropdownUser";
 import Search from "./ModalSearch";
 
@@ -46,7 +45,7 @@ export default function NavBar({ setIsCollapse, collapse }: NavProps) {
           <Avatar
             size={40}
             shape="square"
-            src={`${baseURL.API_URL}/${user?.avatar}`}
+            src={`http://localhost:3333/public/${user?.avatar}`}
           />
         </DropdownUser>
       </Space>

@@ -1,10 +1,10 @@
+// classes/level/index.tsx
 import { PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Drawer, Form, Space, Table } from "antd";
+import { Button, Card, Drawer, Form, Space, Table, message } from "antd";
 import { useState } from "react";
 import DrawerFooter from "../../../../components/DrawerFooter";
 import Filters from "../../../../components/Filters";
 import { Input } from "../../../../components/Input";
-import { useMainContext } from "../../../../context/main.context";
 import {
   useFetch,
   useMutationPatch,
@@ -14,93 +14,93 @@ import type { ILevel } from "../../../../utils/type";
 import { columns } from "./columns";
 
 export default function Level() {
-  const [open, setOpen] = useState<boolean>(false);
-  const [drawerTitle, setDrawerTitle] = useState<string>(
-    "Adicionar Nova Classe",
-  );
-  const [drawerBtnTitle, setDrawerBtnTitle] = useState<string>("Adicionar");
-  const { message } = useMainContext();
-
+  const [open, setOpen] = useState(false);
+  const [drawerTitle, setDrawerTitle] = useState("Adicionar Nova Classe");
+  const [drawerBtnTitle, setDrawerBtnTitle] = useState("Adicionar");
   const [form] = Form.useForm();
 
-  const { mutateAsync, isPending } = useMutationPost(["levels"], "level");
+  const { data, refetch } = useFetch(["levels"], "levels");
+  const { mutateAsync, isPending } = useMutationPost(["levels"], "levels");
   const { mutateAsyncPatch, isPending: isPendingUpdate } = useMutationPatch(
     ["levels"],
-    "level",
+    "levels",
   );
-  const { data, refetch } = useFetch(["level"], "level");
 
   const onShow = () => {
-    setOpen(true);
-    setDrawerBtnTitle("Adicionar");
+    form.resetFields();
     setDrawerTitle("Adicionar Nova Classe");
+    setDrawerBtnTitle("Adicionar");
+    setOpen(true);
   };
 
   const onClose = () => {
     setOpen(false);
     form.resetFields();
   };
-  console.log(data);
 
-  const onEdit = (values: any) => {
-    console.log(values);
+  const onEdit = (record: ILevel) => {
+    setDrawerTitle(`Editar Classe: ${record.name}`);
     setDrawerBtnTitle("Actualizar");
-    setDrawerTitle("Editar a Classe");
-    setOpen(true);
     form.setFieldsValue({
-      id: values.id,
-      name: values.name,
-      status: {
-        label: values.status ? "Activo" : "Desactivado",
-        value: values.status,
-      },
+      id: record.id,
+      name: record.name,
+      description: (record as any).description ?? "",
+      status: record.status,
     });
+    setOpen(true);
   };
 
-  const onAddNewLevel = (values: any) => {
-    console.log(values);
-
-    mutateAsync({
-      name: values.name,
-      status: values.status,
-      description: "",
-    }).then(() => {
-      message.success("Classe criado com sucesso!");
-      setOpen(false);
+  const onEnable = (record: ILevel) => {
+    mutateAsyncPatch({
+      id: record.id,
+      body: { status: !record.status },
+    }).then((res) => {
+      message.success(res?.message ?? "Estado actualizado.");
       refetch();
-      form.resetFields();
     });
   };
 
-  const onEditLevel = (values: any) => {
-    console.log(values);
+  const onSubmit = async (values: any) => {
+    if (values.id) {
+      await mutateAsyncPatch({
+        id: values.id,
+        body: {
+          name: values.name,
+          description: values.description,
+          status: values.status,
+        },
+      });
+      message.success("Classe actualizada com sucesso!");
+    } else {
+      await mutateAsync({
+        name: values.name,
+        description: values.description ?? "",
+        status: values.status ?? true,
+      });
+      message.success("Classe criada com sucesso!");
+    }
+    refetch();
+    onClose();
   };
-
-  const onEnable = (values: any) => {
-    mutateAsyncPatch({ id: values.id, body: { status: !values.status } }).then(
-      (values) => {
-        message.success(values.message);
-        refetch();
-      },
-    );
-  };
-
-  const onFiltersChange = (filters: any) => {};
 
   return (
     <Card
-      title={<Filters onFiltersChange={onFiltersChange} />}
+      title={<Filters onFiltersChange={() => {}} />}
       extra={
         <Space>
-          <Button onClick={onShow} icon={<PlusOutlined />} />
+          <Button type="primary" icon={<PlusOutlined />} onClick={onShow}>
+            Nova Classe
+          </Button>
         </Space>
       }
     >
       <Table<ILevel>
-        key="id"
+        rowKey="id"
         columns={columns({ onEdit, onEnable, enableLoading: isPendingUpdate })}
-        dataSource={data?.levels || []}
+        dataSource={data?.levels ?? []}
+        pagination={{ pageSize: 10 }}
       />
+
       <Drawer
         title={drawerTitle}
         open={open}
@@ -111,15 +111,9 @@ export default function Level() {
           <DrawerFooter
             okText={drawerBtnTitle}
             onOk={() =>
-              form.validateFields().then((values) => {
-                if (values.id) {
-                  onEditLevel(values);
-                } else {
-                  onAddNewLevel(values);
-                }
-              })
+              form.validateFields().then((values) => onSubmit(values))
             }
-            loading={isPending}
+            loading={isPending || isPendingUpdate}
             cancelText="Cancelar"
             onClose={onClose}
           />
@@ -127,10 +121,19 @@ export default function Level() {
       >
         <Form form={form} name="level-form" layout="vertical">
           <Input.Id name="id" />
-          <Input.Text label="Nome da Classe" required name="name" />
+          <Input.Text
+            label="Nome da Classe"
+            required
+            name="name"
+            placeholder="Ex.: 8.ª Classe"
+          />
+          <Input.Text
+            label="Descrição"
+            name="description"
+            placeholder="Descrição opcional"
+          />
           <Input.Select
             label="Estado"
-            required
             name="status"
             placeholder="Selecione o estado"
             options={[

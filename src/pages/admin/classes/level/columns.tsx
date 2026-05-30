@@ -1,3 +1,4 @@
+// classes/level/columns.tsx
 import { Tag, type TableColumnsType } from "antd";
 import DataActions from "../../../../components/DataAction";
 import type { ILevel } from "../../../../utils/type";
@@ -17,22 +18,30 @@ export const columns = ({
     title: "Nome da Classe",
     dataIndex: "name",
     key: "name",
+    render: (name) => <strong>{name}</strong>,
   },
   {
-    title: "Turmas Associados",
-    dataIndex: "sections",
+    title: "Descrição",
+    dataIndex: "description",
+    key: "description",
+    render: (d) => d ?? "—",
+  },
+  {
+    title: "Disciplinas",
+    key: "subjects",
+    render: (_, record: any) => record._count?.subjects ?? "—",
+  },
+  {
+    title: "Turmas",
     key: "sections",
+    render: (_, record: any) => record._count?.sections ?? "—",
   },
   {
     title: "Estado",
     dataIndex: "status",
     key: "status",
-    render: (_, { status }) => (
-      <Tag
-        variant="outlined"
-        styles={{ root: { fontSize: 15, padding: 4, paddingInline: 8 } }}
-        color={status ? "green" : "red"}
-      >
+    render: (status) => (
+      <Tag color={status ? "green" : "red"}>
         {status ? "Activo" : "Desactivado"}
       </Tag>
     ),
@@ -41,17 +50,17 @@ export const columns = ({
     title: "Acções",
     key: "actions",
     fixed: "right",
-    width: "7rem",
-    render: (_, { status }) => (
+    width: "10rem",
+    render: (_, record) => (
       <DataActions
         onEdit={(e) => {
-          onEdit?.(_);
+          onEdit(record);
           e.stopPropagation();
         }}
-        status={status}
+        status={record.status}
         enableLoading={enableLoading}
         onEnable={(e) => {
-          onEnable?.(_);
+          onEnable(record);
           e.stopPropagation();
         }}
       />

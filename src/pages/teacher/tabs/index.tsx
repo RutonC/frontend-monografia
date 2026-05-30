@@ -1,28 +1,65 @@
+import type { TeacherProfile, TeacherSectionEntry } from "@/hooks/useTeacher";
 import { Tabs } from "antd";
 import Personal from "./Personal";
+import Schedule from "./Schedule";
+import Sections from "./Sections";
+import Subjects from "./Subjects";
 
-export default function TeacherTabs() {
+interface TeacherTabsProps {
+  teacher?: TeacherProfile;
+  isPending: boolean;
+}
+
+export default function TeacherTabs({ teacher, isPending }: TeacherTabsProps) {
+  const teacherSections: TeacherSectionEntry[] =
+    teacher?.employee?.teacher?.sections ?? [];
+
+  // Disciplinas únicas — deduplica por subjectId
+  const uniqueSubjects = Array.from(
+    new Map(teacherSections.map((ts) => [ts.subjectId, ts])).values(),
+  );
+
+  // Turmas únicas — deduplica por sectionId
+  const uniqueSections = Array.from(
+    new Map(teacherSections.map((ts) => [ts.sectionId, ts])).values(),
+  );
+
   const items = [
     {
-      key: "1",
+      key: "personal",
       label: "Dados Pessoais",
-      children: <Personal />,
+      children: <Personal teacher={teacher} isPending={isPending} />,
     },
     {
-      key: "2",
-      label: "Disciplina(s) Associada(s)",
-      children: <div>Conteúdo das Disciplinas Associadas</div>,
+      key: "subjects",
+      label: `Disciplinas${uniqueSubjects.length ? ` (${uniqueSubjects.length})` : ""}`,
+      children: (
+        <Subjects
+          // Passa o array de TeacherSection — Subjects deduplica internamente
+          teacherSections={teacherSections}
+          isPending={isPending}
+        />
+      ),
     },
     {
-      key: "3",
-      label: "Turma(s) Associada(s)",
-      children: <div>Conteúdo das Turmas Associadas</div>,
+      key: "sections",
+      label: `Turmas${uniqueSections.length ? ` (${uniqueSections.length})` : ""}`,
+      children: (
+        <Sections teacherSections={teacherSections} isPending={isPending} />
+      ),
     },
     {
-      key: "4",
+      key: "schedule",
       label: "Calendário de Aulas",
-      children: <div>Conteúdo do Calendário de Aulas</div>,
+      children: (
+        <Schedule
+          // Calendário ainda não implementado no backend
+          teacherSections={teacherSections}
+          isPending={isPending}
+        />
+      ),
     },
   ];
+
   return <Tabs items={items} />;
 }

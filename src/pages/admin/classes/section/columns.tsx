@@ -1,33 +1,64 @@
-import { Tag, type TableColumnsType } from "antd";
-import DataActions from "../../../../components/DataAction";
-import type { ISection } from "../../../../utils/type";
+// classes/section/columns.tsx
+import DataActions from "@/components/DataAction";
+import type { ISection } from "@/utils/type";
+import { EyeOutlined } from "@ant-design/icons";
+import { Button, Tag, Tooltip, type TableColumnsType } from "antd";
 
 type Handlers = {
   onEdit: (r: ISection) => void;
   onEnable: (r: ISection) => void;
+  onViewDetail: (r: ISection) => void;
   enableLoading?: boolean;
 };
 
 export const columns = ({
   onEdit,
   onEnable,
+  onViewDetail,
   enableLoading,
 }: Handlers): TableColumnsType<ISection> => [
   {
     title: "Nome da Turma",
     dataIndex: "name",
     key: "name",
+    render: (name) => <strong>{name}</strong>,
+  },
+  {
+    title: "Classe",
+    key: "level",
+    render: (_, r: any) => r.level?.name ?? "—",
+  },
+  {
+    title: "Ano Lectivo",
+    key: "academicYear",
+    render: (_, r: any) => r.academicYear?.year ?? "—",
+  },
+  {
+    title: "Alunos / Cap.",
+    key: "capacity",
+    render: (_, r: any) => {
+      const enrolled = r._count?.enrollments ?? 0;
+      const total = r.capacity;
+      const pct = Math.round((enrolled / total) * 100);
+      const color = pct >= 100 ? "red" : pct >= 80 ? "orange" : "green";
+      return (
+        <Tag color={color}>
+          {enrolled} / {total}
+        </Tag>
+      );
+    },
+  },
+  {
+    title: "Professores",
+    key: "teachers",
+    render: (_, r: any) => r._count?.teacherSections ?? 0,
   },
   {
     title: "Estado",
     dataIndex: "status",
     key: "status",
-    render: (_, { status }) => (
-      <Tag
-        variant="outlined"
-        styles={{ root: { fontSize: 15, padding: 4, paddingInline: 8 } }}
-        color={status ? "green" : "red"}
-      >
+    render: (status) => (
+      <Tag color={status ? "green" : "red"}>
         {status ? "Activo" : "Desactivado"}
       </Tag>
     ),
@@ -36,20 +67,33 @@ export const columns = ({
     title: "Acções",
     key: "actions",
     fixed: "right",
-    width: "7rem",
-    render: (_, { status }) => (
-      <DataActions
-        onEdit={(e) => {
-          onEdit?.(_);
-          e.stopPropagation();
-        }}
-        status={status}
-        enableLoading={enableLoading}
-        onEnable={(e) => {
-          onEnable?.(_);
-          e.stopPropagation();
-        }}
-      />
+    width: "15rem",
+    render: (_, record) => (
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <Tooltip title="Ver disciplinas e professores">
+          <Button
+            icon={<EyeOutlined />}
+            onClick={(e) => {
+              onViewDetail(record);
+              e.stopPropagation();
+            }}
+          >
+            Detalhes
+          </Button>
+        </Tooltip>
+        <DataActions
+          onEdit={(e) => {
+            onEdit(record);
+            e.stopPropagation();
+          }}
+          status={record.status}
+          enableLoading={enableLoading}
+          onEnable={(e) => {
+            onEnable(record);
+            e.stopPropagation();
+          }}
+        />
+      </div>
     ),
   },
 ];

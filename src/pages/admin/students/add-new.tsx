@@ -1,5 +1,6 @@
+// pages/admin/students/add-new.tsx
 import { HomeOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Flex, Form, Row } from "antd";
+import { Button, Card, Col, Flex, Form, Row, message } from "antd";
 import { Content } from "antd/es/layout/layout";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -20,88 +21,56 @@ export default function AddNewStudent() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const { mutateAsync, isPending } = useMutationPost(["students"], "students");
+
   const [districts, setDistricts] = useState<readonly DistrictName[]>(
     mozambiqueData[provinceNameData[0]],
   );
-  const [secondCity, setSecondCity] = useState<DistrictName>(
-    mozambiqueData[provinceNameData[0]][0],
-  );
 
   const handleProvinceChange = (value: ProvinceName) => {
-    setDistricts(mozambiqueData[value]);
-    setSecondCity(mozambiqueData[value][0]);
-  };
-
-  const onSecondCityChange = (value: DistrictName) => {
-    setSecondCity(value);
+    setDistricts(mozambiqueData[value] ?? mozambiqueData[provinceNameData[0]]);
+    form.setFieldValue("districtOfBirth", undefined);
   };
 
   const handleAddNewStudent = async (values: any) => {
-    console.log({ values });
-    const {
-      firstName,
-      lastName,
-      gender,
-      cardIdentifyNumber,
-      birthday,
-      naturalness,
-      districtOfBirth,
-      provinceOfBirth,
-      placeOfIssue,
-      validateDate,
-      fatherName,
-      fatherContact,
-      fatherEmail,
-      fatherProfission,
-      fatherWorkplace,
-      motherAddress,
-      motherContact,
-      motherEmail,
-      motherName,
-      motherProfission,
-      motherWorkplace,
-      guardianAddress,
-      guardianContact,
-      guardianEmail,
-      guardianName,
-      guardianRelation,
-      fatherAddress,
-    } = values;
-
-    const ano = dayjs().format("YYYY");
-
+    // O backend novo espera guardian como sub-objecto
+    // e não os campos soltos fatherName, motherName, etc.
     await mutateAsync({
-      firstName,
-      lastName,
-      gender,
-      cardIdentifyNumber,
-      birthday,
-      naturalness,
-      districtOfBirth,
-      provinceOfBirth,
-      placeOfIssue,
-      validateDate,
-      fatherName,
-      fatherContact,
-      fatherEmail,
-      fatherProfission,
-      fatherWorkplace,
-      motherAddress,
-      motherContact,
-      motherEmail,
-      motherName,
-      motherProfission,
-      motherWorkplace,
-      guardianAddress,
-      guardianContact,
-      guardianEmail,
-      guardianName,
-      guardianRelation,
-      year: ano,
-      fatherAddress,
-    }).then(() => {
-      form.resetFields();
+      firstName: values.firstName,
+      lastName: values.lastName,
+      gender: values.gender, // "MALE" | "FEMALE" | "OTHER"
+      cardIdentifyNumber: values.cardIdentifyNumber,
+      birthday: values.birthday
+        ? dayjs(values.birthday).toISOString()
+        : undefined,
+      email: values.email,
+      phoneNumber: values.phoneNumber,
+      address: values.address,
+      naturalness: values.naturalness,
+      provinceOfBirth: values.provinceOfBirth,
+      districtOfBirth: values.districtOfBirth,
+      personWithDisability: values.personWithDisability ?? "Não",
+      placeOfIssue: values.placeOfIssue,
+      validateDate: values.validateDate
+        ? dayjs(values.validateDate).toISOString()
+        : undefined,
+      previousSchool: values.previousSchool,
+      previousClass: values.previousClass,
+      previousSchoolYear: values.previousSchoolYear,
+      // encarregado como sub-objecto (novo schema)
+      guardian: {
+        firstName: values.guardianFirstName,
+        lastName: values.guardianLastName,
+        relation: values.guardianRelation,
+        phoneNumber: values.guardianContact,
+        email: values.guardianEmail,
+        address: values.guardianAddress,
+      },
+      year: dayjs().format("YYYY"),
     });
+
+    message.success("Aluno adicionado com sucesso!");
+    form.resetFields();
+    navigate(-1);
   };
 
   return (
@@ -109,228 +78,244 @@ export default function AddNewStudent() {
       <CustomBreadcrumb
         title="Adicionar Novo Aluno"
         items={[
+          { href: "/", title: <HomeOutlined /> },
           {
-            href: "/",
-            title: <HomeOutlined />,
+            title: "Alunos",
+            href: "#",
+            onClick: () => navigate("/alunos"),
           },
-          { title: "Alunos" },
           { title: "Adicionar Novo Aluno" },
         ]}
+        onPrev
       />
       <Content>
-        <Form name="add-new-student" layout="vertical" form={form}>
-          <Flex vertical gap="small">
-            <Card title="Informações pessoais">
+        <Form
+          name="add-new-student"
+          layout="vertical"
+          form={form}
+          onFinish={handleAddNewStudent}
+        >
+          <Flex vertical gap="middle">
+            {/* ── Dados Pessoais ─────────────────────────── */}
+            <Card title="Informações Pessoais">
               <Row gutter={[16, 16]}>
-                <Col md={12}>
-                  <Input.Text label="Nome do Aluno" name="firstName" required />
-                </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
-                    label="Apelido do Aluno"
-                    name="lastName"
+                    label="Nome do Aluno"
+                    name="firstName"
+                    placeholder="Nome"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Apelido do Aluno"
+                    name="lastName"
+                    placeholder="Apelido"
+                    required
+                  />
+                </Col>
+                <Col md={12} xs={24}>
                   <Input.Select
-                    label="Gênero"
-                    placeholder="Selecione o gênero"
+                    label="Género"
+                    placeholder="Selecione o género"
                     name="gender"
                     options={[
-                      { value: "M", label: "Masculino" },
-                      { value: "F", label: "Feminio" },
+                      { value: "MALE", label: "Masculino" },
+                      { value: "FEMALE", label: "Feminino" },
+                      { value: "OTHER", label: "Outro" },
                     ]}
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.DataPicker
                     label="Data de Nascimento"
                     name="birthday"
                     required
-                    placeholder="Selecione a data de nascimento"
+                    placeholder="Selecione a data"
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     label="Nr. Bilhete de Identidade (BI)"
                     pattern={biRegex}
+                    patternMessage="BI inválido"
                     name="cardIdentifyNumber"
+                    placeholder="Ex.: 123456789A123B"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
-                    label="Local da Emissão do BI"
+                    label="Local de Emissão do BI"
                     name="placeOfIssue"
-                    patternMessage="BI inválido, tente novamente."
+                    placeholder="Ex.: Beira"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.DataPicker
-                    label="Válidade do BI"
+                    label="Validade do BI"
                     name="validateDate"
                     required
-                    placeholder="Selecione a data de validade do BI"
+                    placeholder="Selecione a data de validade"
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     label="Nacionalidade"
                     name="naturalness"
+                    placeholder="Ex.: Moçambicana"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Select
-                    label="Provincia de Nascimento"
-                    defaultValue={provinceNameData[0]}
+                    label="Província de Nascimento"
                     name="provinceOfBirth"
                     onChange={handleProvinceChange}
-                    options={provinceNameData.map((province) => ({
-                      label: province,
-                      value: province,
+                    options={provinceNameData.map((p) => ({
+                      label: p,
+                      value: p,
                     }))}
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Select
-                    label="Districto de Nascimento"
+                    label="Distrito de Nascimento"
                     name="districtOfBirth"
-                    value={secondCity}
-                    onChange={onSecondCityChange}
-                    options={districts.map((district) => ({
-                      label: district,
-                      value: district,
-                    }))}
+                    options={districts.map((d) => ({ label: d, value: d }))}
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     label="Número de Telefone"
                     name="phoneNumber"
                     pattern={phoneRegex}
-                    patternMessage="Número de telefone, Inválido"
-                    required
+                    patternMessage="Número inválido"
+                    placeholder="Ex.: 845077861"
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     type="email"
                     label="E-mail"
                     name="email"
-                    required
+                    placeholder="email@exemplo.com"
+                  />
+                </Col>
+                <Col md={24} xs={24}>
+                  <Input.Text
+                    label="Endereço"
+                    name="address"
+                    placeholder="Endereço completo"
+                  />
+                </Col>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Necessidades Especiais"
+                    name="personWithDisability"
+                    placeholder="Ex.: Não, Deficiência visual..."
                   />
                 </Col>
               </Row>
             </Card>
-            <Card title="Pais e Encarregado de Educação">
-              <Row gutter={[16, 16]}>
-                <Col md={12}>
-                  <Input.Text label="Nome do Pai" name="fatherName" required />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Número de Telefone do Pai"
-                    name="fatherContact"
-                    pattern={phoneRegex}
-                    required
-                  />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Ocupação do Pai"
-                    name="fatherProfission"
-                    required
-                  />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Residência do Pai"
-                    name="fatherAddress"
-                    required
-                  />
-                </Col>
-                <Col md={12}>
-                  <Input.Text label="Nome do Mãe" name="motherName" required />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Número de Telefone do Mãe"
-                    name="motherContact"
-                    pattern={phoneRegex}
-                    required
-                  />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Ocupação do Mãe"
-                    name="motherProfission"
-                    required
-                  />
-                </Col>
-                <Col md={12}>
-                  <Input.Text
-                    label="Residência do Mãe"
-                    name="motherAddress"
-                    required
-                  />
-                </Col>
 
-                <Col md={24}>
+            {/* ── Histórico Escolar ──────────────────────── */}
+            <Card title="Histórico Escolar Anterior">
+              <Row gutter={[16, 16]}>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Escola Anterior"
+                    name="previousSchool"
+                    placeholder="Nome da escola anterior"
+                  />
+                </Col>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Classe Anterior"
+                    name="previousClass"
+                    placeholder="Ex.: 9.ª Classe"
+                  />
+                </Col>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Ano Lectivo Anterior"
+                    name="previousSchoolYear"
+                    placeholder="Ex.: 2025"
+                  />
+                </Col>
+              </Row>
+            </Card>
+
+            {/* ── Encarregado de Educação ────────────────── */}
+            <Card title="Encarregado de Educação">
+              <Row gutter={[16, 16]}>
+                <Col md={24} xs={24}>
                   <Input.Select
-                    label="Relação com o Encarregado"
-                    placeholder="Selecione a Relação que têm com seu Encarregado"
+                    label="Relação com o Aluno"
+                    placeholder="Selecione a relação"
                     name="guardianRelation"
                     options={[
                       { label: "Pai", value: "Pai" },
                       { label: "Mãe", value: "Mãe" },
+                      { label: "Tio/Tia", value: "Tio/Tia" },
+                      { label: "Avô/Avó", value: "Avô/Avó" },
                       { label: "Outro", value: "Outro" },
                     ]}
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     label="Nome do Encarregado"
-                    name="guardianName"
+                    name="guardianFirstName"
+                    placeholder="Nome"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
-                    label="Número de Telefone do Encarregado"
+                    label="Apelido do Encarregado"
+                    name="guardianLastName"
+                    placeholder="Apelido"
+                    required
+                  />
+                </Col>
+                <Col md={12} xs={24}>
+                  <Input.Text
+                    label="Telefone do Encarregado"
                     name="guardianContact"
                     pattern={phoneRegex}
+                    patternMessage="Número inválido"
+                    placeholder="Ex.: 845077861"
                     required
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={12} xs={24}>
                   <Input.Text
                     type="email"
                     label="E-mail do Encarregado"
                     name="guardianEmail"
-                    required
+                    placeholder="email@exemplo.com"
                   />
                 </Col>
-                <Col md={12}>
+                <Col md={24} xs={24}>
                   <Input.Text
                     label="Residência do Encarregado"
                     name="guardianAddress"
-                    required
+                    placeholder="Endereço completo"
                   />
                 </Col>
               </Row>
             </Card>
-            <Flex gap="middle">
+
+            {/* ── Botões ─────────────────────────────────── */}
+            <Flex gap="middle" justify="flex-end">
               <Button
-                variant="outlined"
-                color="red"
-                block
                 onClick={() => {
                   navigate(-1);
                   form.resetFields();
@@ -338,17 +323,8 @@ export default function AddNewStudent() {
               >
                 Cancelar
               </Button>
-              <Button
-                type="primary"
-                block
-                onClick={() =>
-                  form.validateFields().then((values) => {
-                    handleAddNewStudent(values);
-                  })
-                }
-                loading={isPending}
-              >
-                Adicionar Novo Aluno
+              <Button type="primary" htmlType="submit" loading={isPending}>
+                Adicionar Aluno
               </Button>
             </Flex>
           </Flex>

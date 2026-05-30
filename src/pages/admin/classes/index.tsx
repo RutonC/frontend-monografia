@@ -8,6 +8,7 @@ export default function Classes() {
   return (
     <>
       <CustomBreadcrumb
+        title="Classes & Turmas"
         items={[
           { href: "/", title: <HomeOutlined /> },
           { title: "Classes & Turmas" },

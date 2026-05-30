@@ -1,3 +1,4 @@
+// pages/admin/Employee/index.tsx
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   Button,
@@ -5,17 +6,21 @@ import {
   Col,
   Collapse,
   DatePicker,
+  Drawer,
   Form,
-  Modal,
   Row,
   Table,
+  message,
 } from "antd";
 import dayjs from "dayjs";
 import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
+import DrawerFooter from "../../../components/DrawerFooter";
+import Filters from "../../../components/Filters";
 import { Input } from "../../../components/Input";
 import {
   useFetch,
+  useMutationDel,
   useMutationPatch,
   useMutationPost,
 } from "../../../utils/fetch";
@@ -30,434 +35,457 @@ import type { IDepartment, IEmployee } from "../../../utils/type";
 import { columns } from "./columns";
 
 const { Panel } = Collapse;
-const dateFormat = "YYYY/MM/DD";
+const DATE_FORMAT = "DD/MM/YYYY";
 
-function Employee() {
-  const { data: allDepartments } = useFetch(["departments"], "departments");
-  const { mutateAsync, isPending } = useMutationPost(["employee"], "employee");
-  const { mutateAsyncPatch, isPending: isPendingUpdate } = useMutationPatch(
-    ["employee"],
-    "employee",
+export default function Employee() {
+  // ── Estado ────────────────────────────────────────────────
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<IEmployee | null>(
+    null,
   );
+  const [selectedDeptName, setSelectedDeptName] = useState<string | null>(null);
+  const [editDeptName, setEditDeptName] = useState<string | null>(null);
+  const [isTeacher, setIsTeacher] = useState(false);
+
+  const [addForm] = Form.useForm();
+  const [editForm] = Form.useForm();
+
+  // ── Dados ─────────────────────────────────────────────────
+  const { data: deptsData } = useFetch(["departments"], "departments");
   const {
-    data: allEmployee,
+    data: employeesData,
+    isPending: loadingList,
     refetch,
-    isPending: loadingEmployee,
-  } = useFetch(["employee"], "employee");
+  } = useFetch(["employees"], "employees");
 
-  const [open, setOpen] = useState(false);
-  const [selectedDepartmentName, setSelectedDepartmentName] = useState<
-    string | null
-  >(null);
-  const [modalOkText, setModalOkText] = useState("Adicionar novo Funcionário");
-  const [modalTitle, setModalTitle] = useState("Adicionar Funcionário");
-  const [isTeacher, setIsTeacher] = useState<boolean>(false);
-  const [form] = Form.useForm();
+  const { mutateAsync: mutateCreate, isPending: creating } = useMutationPost(
+    ["employees"],
+    "employees",
+  );
+  const { mutateAsyncPatch: mutateUpdate, isPending: updating } =
+    useMutationPatch(["employees"], "employees");
+  const { mutateAsyncPatch: mutateSuspend, isPending: suspending } =
+    useMutationPatch(["employees"], "employees");
+  const { mutateAsyncDel: mutateDelete } = useMutationDel(
+    ["employees"],
+    "employees",
+  );
 
-  const departmentOptions =
-    allDepartments?.departments?.map((d: IDepartment) => ({
+  // ── Opções de departamento ────────────────────────────────
+  const deptOptions =
+    deptsData?.departments?.map((d: IDepartment) => ({
       label: d.name,
-      value: d.id, // ← id real para enviar ao backend
+      value: d.id,
     })) ?? [];
 
-  const positionOptions = selectedDepartmentName
-    ? (departmentPositions[selectedDepartmentName] ?? []).map((p) => ({
-        label: p,
-        value: p,
-      }))
-    : [];
+  const positionOptions = (deptName: string | null) =>
+    deptName
+      ? (departmentPositions[deptName] ?? []).map((p: string) => ({
+          label: p,
+          value: p,
+        }))
+      : [];
 
-  const onShowModal = () => {
-    setModalOkText("Adicionar novo Funcionário");
-    setModalTitle("Adicionar Funcionário");
-    setOpen(true);
+  // ── Handlers — Criar ──────────────────────────────────────
+  const onOpenAdd = () => {
+    addForm.resetFields();
+    setSelectedDeptName(null);
+    setIsTeacher(false);
+    setAddOpen(true);
   };
 
-  const handleDepartmentChange = (departmentId: any) => {
-    const selected = allDepartments?.departments?.find(
-      (d: IDepartment) => d.id === departmentId,
-    );
-    setSelectedDepartmentName(selected?.name ?? null);
-    form.setFieldValue("position", undefined);
+  const onCloseAdd = () => {
+    setAddOpen(false);
+    addForm.resetFields();
   };
 
-  const handleAddNewEmployee = async (values: any) => {
-    const {
-      firstName,
-      lastName,
-      nuitNumber,
-      departmentId,
-      cardIdentifyNumber,
-      gender,
-      academicLevel,
-      wage,
-      phoneNumber,
-      address,
-      birthday,
-      email,
-      position,
-      specialization,
-    } = values;
-    let isTeacher = false;
+  const handleDeptChangeAdd = (id: string) => {
+    const dept = deptsData?.departments?.find((d: IDepartment) => d.id === id);
+    setSelectedDeptName(dept?.name ?? null);
+    setIsTeacher(dept?.name?.toLowerCase().includes("professor") ?? false);
+    addForm.setFieldValue("position", undefined);
+  };
 
-    if (selectedDepartmentName === "Professor") {
-      isTeacher = true;
-    }
-    mutateAsync({
-      firstName,
-      lastName,
-      nuitNumber,
-      cardIdentifyNumber,
-      gender,
-      departmentId,
-      position,
-      specialization,
-      academicLevel,
-      wage: Number(wage),
-      phoneNumber,
-      address,
-      birthday,
-      email,
-      year: "2026",
-      password: "ams.12345",
+  const handleCreate = async (values: any) => {
+    await mutateCreate({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
+      phoneNumber: values.phoneNumber,
+      gender: values.gender,
+      birthday: values.birthday
+        ? dayjs(values.birthday).toISOString()
+        : undefined,
+      address: values.address,
+      nuitNumber: values.nuitNumber,
+      cardIdentifyNumber: values.cardIdentifyNumber,
+      departmentId: values.departmentId,
+      position: values.position,
+      academicLevel: values.academicLevel,
+      wage: Number(values.wage),
+      specialization: values.specialization,
+      year: String(new Date().getFullYear()),
+      password: "Ams@12345",
       isTeacher,
-    }).then(() => {
-      form.resetFields();
-      setSelectedDepartmentName("");
-      refetch();
-      setOpen(false);
     });
+
+    message.success("Funcionário adicionado com sucesso!");
+    refetch();
+    onCloseAdd();
   };
 
-  const handleEditEmployee = async (values: any) => {
-    const {
-      firstName,
-      lastName,
-      nuitNumber,
-      cardIdentifyNumber,
-      gender,
-      departmentId,
-      position,
-      specialization,
-      academicLevel,
-      wage,
-      phoneNumber,
-      address,
-      birthday,
-      email,
-    } = values;
+  // ── Handlers — Editar ─────────────────────────────────────
+  const onEdit = (record: IEmployee) => {
+    setSelectedEmployee(record);
+    setEditDeptName(record.department?.name ?? null);
+    setIsTeacher(!!record.teacher);
 
-    await mutateAsyncPatch({
-      id: values.id,
+    editForm.setFieldsValue({
+      id: record.id,
+      firstName: record.user?.firstName,
+      lastName: record.user?.lastName,
+      email: record.user?.email,
+      phoneNumber: record.user?.phoneNumber,
+      gender: record.user?.gender,
+      birthday: record.user?.birthday ? dayjs(record.user.birthday) : undefined,
+      address: record.user?.address,
+      nuitNumber: record.user?.nuitNumber,
+      cardIdentifyNumber: record.user?.cardIdentifyNumber,
+      departmentId: record.department?.id,
+      position: record.position,
+      academicLevel: record.academicLevel,
+      wage: record.wage ? String(record.wage) : undefined,
+      specialization: (record.teacher as any)?.specialization,
+    });
+
+    setEditOpen(true);
+  };
+
+  const onCloseEdit = () => {
+    setEditOpen(false);
+    editForm.resetFields();
+    setSelectedEmployee(null);
+  };
+
+  const handleDeptChangeEdit = (id: string) => {
+    const dept = deptsData?.departments?.find((d: IDepartment) => d.id === id);
+    setEditDeptName(dept?.name ?? null);
+    setIsTeacher(dept?.name?.toLowerCase().includes("professor") ?? false);
+    editForm.setFieldValue("position", undefined);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!selectedEmployee) return;
+
+    await mutateUpdate({
+      id: selectedEmployee.id,
       body: {
-        firstName,
-        lastName,
-        nuitNumber,
-        cardIdentifyNumber,
-        gender,
-        departmentId,
-        position,
-        specialization,
-        academicLevel,
-        wage: Number(wage),
-        phoneNumber,
-        address,
-        birthday,
-        email,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        email: values.email,
+        phoneNumber: values.phoneNumber,
+        gender: values.gender,
+        birthday: values.birthday
+          ? dayjs(values.birthday).toISOString()
+          : undefined,
+        address: values.address,
+        nuitNumber: values.nuitNumber,
+        cardIdentifyNumber: values.cardIdentifyNumber,
+        departmentId: values.departmentId,
+        position: values.position,
+        academicLevel: values.academicLevel,
+        wage: Number(values.wage),
+        specialization: values.specialization,
       },
-    }).then(() => {
-      form.resetFields();
-      setSelectedDepartmentName("");
-      refetch();
-      setOpen(false);
     });
+
+    message.success("Funcionário actualizado com sucesso!");
+    refetch();
+    onCloseEdit();
   };
 
-  const onEdit = (values: any) => {
-    const { academicLevel, wage, position, user, teacher, specialization } =
-      values;
-    console.log("Dados do funcionário: ", values);
-    setModalOkText("Editando Funcionário");
-    setModalTitle("Actualizar Dados Funcionário");
-    setOpen(true);
-
-    if (teacher) {
-      setIsTeacher(true);
-    } else {
-      setIsTeacher(false);
-    }
-
-    form.setFieldsValue({
-      id: values.id,
-      firstName: user?.firstName,
-      lastName: user?.lastName,
-      nuitNumber: user?.nuitNumber,
-      cardIdentifyNumber: user?.cardIdentifyNumber,
-      gender: {
-        value: values?.user?.gender,
-        label: values?.user?.gender === "M" ? "Masculino" : "Feminino",
-      },
-      departmentId: {
-        value: values?.department?.id,
-        label: values?.department?.name,
-      },
-      position: { value: "", label: position },
-      specialization,
-      academicLevel: { value: "", label: academicLevel },
-      wage,
-      phoneNumber: user?.phoneNumber,
-      address: user?.address,
-      birthday: dayjs(user?.birthday),
-      email: user?.email,
+  // ── Handlers — Suspender / Eliminar ──────────────────────
+  const onSuspend = async (record: IEmployee) => {
+    const isSuspended = record.user?.status === "SUSPENDED";
+    await mutateSuspend({
+      id: record.id,
+      urlParams: "suspend",
+      body: {},
     });
+    message.success(
+      isSuspended ? "Conta reactivada." : "Funcionário suspenso.",
+    );
+    refetch();
   };
 
-  const onDelete = () => {};
+  const onDelete = async (record: IEmployee) => {
+    await mutateDelete(record.id);
+    message.success("Funcionário removido com sucesso.");
+    refetch();
+  };
 
+  // ── Formulário reutilizável ───────────────────────────────
+  const EmployeeForm = ({
+    form,
+    deptName,
+    onDeptChange,
+    showTeacherFields,
+  }: {
+    form: any;
+    deptName: string | null;
+    onDeptChange: (id: string) => void;
+    showTeacherFields: boolean;
+  }) => (
+    <Form form={form} layout="vertical">
+      <Input.Id name="id" />
+      <Collapse defaultActiveKey={["1", "2", "3"]} ghost>
+        <Panel header="Informações Pessoais" key="1">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="Nome"
+                name="firstName"
+                placeholder="Nome do funcionário"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="Apelido"
+                name="lastName"
+                placeholder="Apelido do funcionário"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="E-mail"
+                name="email"
+                placeholder="email@exemplo.com"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="Telefone"
+                name="phoneNumber"
+                placeholder="845077861"
+                pattern={phoneRegex}
+                patternMessage="9 dígitos (ex.: 845077861)"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Select
+                label="Género"
+                name="gender"
+                placeholder="Selecione o género"
+                required
+                options={[
+                  { label: "Masculino", value: "MALE" },
+                  { label: "Feminino", value: "FEMALE" },
+                  { label: "Outro", value: "OTHER" },
+                ]}
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Data de Nascimento"
+                name="birthday"
+                rules={[{ required: true, message: "Campo obrigatório" }]}
+              >
+                <DatePicker
+                  format={DATE_FORMAT}
+                  style={{ width: "100%" }}
+                  placeholder="Selecione a data"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="NUIT"
+                name="nuitNumber"
+                pattern={nuitRegex}
+                patternMessage="NUIT inválido"
+                placeholder="Ex.: 123456789"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="Bilhete de Identidade"
+                name="cardIdentifyNumber"
+                pattern={biRegex}
+                patternMessage="BI inválido"
+                placeholder="Ex.: 123456789A123B"
+                required
+              />
+            </Col>
+            <Col xs={24}>
+              <Input.Text
+                label="Endereço"
+                name="address"
+                placeholder="Endereço completo"
+                required
+              />
+            </Col>
+          </Row>
+        </Panel>
+
+        <Panel header="Departamento & Cargo" key="2">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <Input.Select
+                label="Departamento"
+                name="departmentId"
+                onChange={onDeptChange}
+                options={deptOptions}
+                placeholder="Selecione o departamento"
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Select
+                label="Cargo"
+                name="position"
+                placeholder={
+                  deptName
+                    ? "Selecione o cargo"
+                    : "Selecione primeiro o departamento"
+                }
+                options={positionOptions(deptName)}
+                disabled={!deptName}
+                required
+              />
+            </Col>
+          </Row>
+        </Panel>
+
+        <Panel header="Informações Profissionais" key="3">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
+              <Input.Select
+                label="Nível Académico"
+                name="academicLevel"
+                placeholder="Selecione o nível académico"
+                options={[
+                  { label: "Pós-graduação", value: "Pós-graduação" },
+                  { label: "Licenciado", value: "Licenciado" },
+                  { label: "Mestrado", value: "Mestrado" },
+                  { label: "Doutorado", value: "Doutorado" },
+                ]}
+                required
+              />
+            </Col>
+            <Col xs={24} sm={12}>
+              <Input.Text
+                label="Salário (MZN)"
+                name="wage"
+                pattern={wageRegex}
+                patternMessage="Valor inválido (ex.: 25000 ou 25000.00)"
+                placeholder="Ex.: 25000.00"
+                required
+              />
+            </Col>
+            {showTeacherFields && (
+              <Col xs={24} sm={12}>
+                <Input.Text
+                  label="Especialização"
+                  name="specialization"
+                  placeholder="Ex.: Matemática, Física..."
+                />
+              </Col>
+            )}
+          </Row>
+        </Panel>
+      </Collapse>
+    </Form>
+  );
+
+  // ── Render ────────────────────────────────────────────────
   return (
     <>
       <CustomBreadcrumb
+        title="Funcionários"
         items={[
-          {
-            href: "/",
-            title: <HomeOutlined />,
-          },
+          { href: "/", title: <HomeOutlined /> },
           { title: "Funcionários" },
         ]}
-        title="Funcionários"
       />
+
       <Card
-        title="Funcionários"
+        title={<Filters onFiltersChange={() => {}} />}
         extra={
-          <Button onClick={onShowModal}>
-            <PlusOutlined />
+          <Button type="primary" icon={<PlusOutlined />} onClick={onOpenAdd}>
+            Novo Funcionário
           </Button>
         }
       >
         <Table<IEmployee>
-          columns={columns({ onEdit, onDelete })}
-          loading={loadingEmployee}
-          dataSource={allEmployee?.employees || []}
+          rowKey="id"
+          columns={columns({
+            onEdit,
+            onDelete,
+            onSuspend,
+            suspendLoading: suspending,
+          })}
+          loading={loadingList}
+          dataSource={employeesData?.employees ?? []}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: "max-content" }}
         />
-        <Modal
-          open={open}
-          cancelText="Cancelar"
-          onCancel={() => {
-            setOpen(false);
-            form.resetFields();
-            setSelectedDepartmentName("");
-          }}
-          okButtonProps={{
-            loading: isPending || isPendingUpdate,
-          }}
-          okText={modalOkText}
-          title={modalTitle}
-          width={"60%"}
-          onOk={() =>
-            form.validateFields().then((values) => {
-              if (values.id) {
-                handleEditEmployee(values);
-              } else {
-                handleAddNewEmployee(values);
-              }
-            })
-          }
-        >
-          <Form name="form_new_teacher" form={form} layout="vertical" lang="pt">
-            <Input.Id name="id" />
-            <Collapse defaultActiveKey={["1", "2"]}>
-              <Panel header="Informações pessoais" key="1">
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Input.Text
-                      label="Nome do Funcionário"
-                      name="firstName"
-                      placeholder="Insira o nome do funcionário"
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Text
-                      label="Apelido"
-                      name="lastName"
-                      placeholder="Insira o apelido do funcionário"
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Text
-                      label="E-mail"
-                      name="email"
-                      placeholder="Insira o e-mail do funcionário"
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      label="Data de nascimento"
-                      name="birthday"
-                      rules={[
-                        {
-                          required: true,
-                          message:
-                            "É de caracter obrigatório preencher o campo",
-                        },
-                      ]}
-                    >
-                      <DatePicker
-                        defaultValue={dayjs("2015/01/01", dateFormat)}
-                        maxDate={dayjs("2024/01/01")}
-                        format={dateFormat}
-                        style={{ width: "100%" }}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Input.Text
-                      label="Número de telefone"
-                      name="phoneNumber"
-                      placeholder="Insira o número de telefone do funcionário"
-                      pattern={phoneRegex}
-                      patternMessage="Número de telefone inválido, deve ter 9 dígitos (ex.:845077861)"
-                      message="É de caracter obrigatório preencher esse campo"
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Select
-                      label="Genêro"
-                      name="gender"
-                      placeholder="Insira o genêro do funcionário"
-                      message="É de caracter obrigatório preencher esse campo"
-                      required
-                      options={[
-                        { label: "Masculino", value: "M" },
-                        { label: "Feminino", value: "F" },
-                      ]}
-                    />
-                  </Col>
-                </Row>
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Input.Text
-                      label="NUIT"
-                      name="nuitNumber"
-                      pattern={nuitRegex}
-                      patternMessage="NUIT inválido, tente novamente."
-                      placeholder="Insira o número do nuit do funcionário"
-                      message="É de caracter obrigatório preencher esse campo"
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Text
-                      label="Nr. Bilhete de Identidade (BI)"
-                      name="cardIdentifyNumber"
-                      pattern={biRegex}
-                      patternMessage="BI inválido, tente novamente"
-                      placeholder="Insira o número de BI do funcionário"
-                      message="É de caracter obrigatório preencher esse campo"
-                      required
-                    />
-                  </Col>
-                </Row>
-              </Panel>
-              <Panel header="Departamento & Função" key="2">
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Input.Select
-                      label="Departamento"
-                      name="departmentId"
-                      onChange={handleDepartmentChange}
-                      options={departmentOptions}
-                      placeholder="Selecione a função do funcionario"
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Select
-                      label="Função do funcionário"
-                      name="position"
-                      placeholder={
-                        selectedDepartmentName
-                          ? "Selecione o cargo"
-                          : "Selecione primeiro o departamento"
-                      }
-                      options={positionOptions}
-                      disabled={!selectedDepartmentName}
-                      required
-                    />
-                  </Col>
-                </Row>
-              </Panel>
-              <Panel header="Outras informações" key="3">
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Input.Select
-                      label="Nível Académico"
-                      name="academicLevel"
-                      placeholder="Selecione o nível académico do funcionário"
-                      options={[
-                        {
-                          label: "Pós-graduação",
-                          value: "Pós-graduação",
-                        },
-                        { label: "Licenciado", value: "Licenciado" },
-                        { label: "Mestrado", value: "Mestrado" },
-                        { label: "Doutorado", value: "Doutorado" },
-                      ]}
-                      required
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Input.Text
-                      label="Salário"
-                      name="wage"
-                      pattern={wageRegex}
-                      patternMessage="Salário inválido, o salário deve ser inteiro ou decimal (ex.: 2000, 2000.00)"
-                      placeholder="Insira o salário do funcionário"
-                      required
-                    />
-                  </Col>
-                  {isTeacher && (
-                    <>
-                      <Col span={12}>
-                        <Input.Text
-                          label="Experiênca"
-                          name="expiriences"
-                          placeholder="Insira o experiênca do funcionário"
-                          required
-                        />
-                      </Col>
-                      <Col span={12}>
-                        <Input.Text
-                          label="Especialização"
-                          name="specialization"
-                          placeholder="Insira a especialização do funcionário"
-                          message="É de caracter obrigatório preencher o campo"
-                          required
-                        />
-                      </Col>
-                    </>
-                  )}
-                  <Col span={24}>
-                    <Input.Text
-                      label="Endereço"
-                      name="address"
-                      placeholder="Insira o endereço do funcionário"
-                      message="É de caracter obrigatório preencher o campo"
-                      required
-                    />
-                  </Col>
-                </Row>
-              </Panel>
-            </Collapse>
-          </Form>
-        </Modal>
       </Card>
+
+      {/* ── Drawer — Adicionar ─────────────────────────────── */}
+      <Drawer
+        title="Adicionar Funcionário"
+        open={addOpen}
+        size={600}
+        placement="right"
+        onClose={onCloseAdd}
+        footer={
+          <DrawerFooter
+            okText="Adicionar"
+            onOk={() => addForm.validateFields().then((v) => handleCreate(v))}
+            loading={creating}
+            cancelText="Cancelar"
+            onClose={onCloseAdd}
+          />
+        }
+      >
+        <EmployeeForm
+          form={addForm}
+          deptName={selectedDeptName}
+          onDeptChange={handleDeptChangeAdd}
+          showTeacherFields={isTeacher}
+        />
+      </Drawer>
+
+      {/* ── Drawer — Editar ────────────────────────────────── */}
+      <Drawer
+        title={`Editar: ${selectedEmployee?.user?.firstName ?? ""} ${selectedEmployee?.user?.lastName ?? ""}`}
+        open={editOpen}
+        size={600}
+        placement="right"
+        onClose={onCloseEdit}
+        footer={
+          <DrawerFooter
+            okText="Guardar Alterações"
+            onOk={() => editForm.validateFields().then((v) => handleUpdate(v))}
+            loading={updating}
+            cancelText="Cancelar"
+            onClose={onCloseEdit}
+          />
+        }
+      >
+        <EmployeeForm
+          form={editForm}
+          deptName={editDeptName}
+          onDeptChange={handleDeptChangeEdit}
+          showTeacherFields={isTeacher}
+        />
+      </Drawer>
     </>
   );
 }
-
-export default Employee;

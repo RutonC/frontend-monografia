@@ -1,0 +1,17 @@
+@mixin content-base($padding-left: 1.5rem) {
+  padding: 54px 1.4rem 54px $padding-left;
+  margin-top: $header-height;
+  background-color: var(--lg-bg);
+  transition: background-color 0.2s ease;
+
+  &.folded {
+    margin-left: $aside-width-folded;
+  }
+}
+
+@mixin truncate($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

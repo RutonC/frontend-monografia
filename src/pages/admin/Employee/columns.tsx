@@ -1,92 +1,99 @@
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import {
-  Button,
-  Popconfirm,
-  Space,
-  Typography,
-  type TableColumnsType,
-} from "antd";
+// pages/admin/Employee/columns.tsx
+import { Tag, type TableColumnsType } from "antd";
+import DataActions from "../../../components/DataAction";
 import type { IEmployee } from "../../../utils/type";
 
 type Handlers = {
   onEdit: (r: IEmployee) => void;
   onDelete: (r: IEmployee) => void;
+  onSuspend: (r: IEmployee) => void;
+  suspendLoading?: boolean;
 };
 
 export const columns = ({
   onEdit,
   onDelete,
+  onSuspend,
+  suspendLoading,
 }: Handlers): TableColumnsType<IEmployee> => [
   {
     title: "Nome",
-    dataIndex: "name",
     key: "name",
-    render: (_, { user }) => `${user?.firstName} ${user?.lastName}`,
+    render: (_, r) =>
+      `${r.user?.firstName ?? ""} ${r.user?.lastName ?? ""}`.trim() || "—",
+  },
+  {
+    title: "Identificador",
+    key: "identifier",
+    render: (_, r) => (
+      <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+        {r.user?.identifier ?? "—"}
+      </span>
+    ),
   },
   {
     title: "Departamento",
-    dataIndex: "department",
     key: "department",
-    render: (_, { department }) => department?.name,
+    render: (_, r) => r.department?.name ?? "—",
   },
   {
-    title: "Email",
-    dataIndex: "email",
+    title: "Cargo",
+    dataIndex: "position",
+    key: "position",
+    render: (v) => v ?? "—",
+  },
+  {
+    title: "E-mail",
     key: "email",
-    render: (_, { user }) => user?.email,
+    render: (_, r) => r.user?.email ?? "—",
   },
   {
     title: "Telefone",
-    dataIndex: "phoneNumber",
     key: "phoneNumber",
-    render: (_, { user }) => user.phoneNumber,
+    render: (_, r) => r.user?.phoneNumber ?? "—",
   },
   {
-    title: "Endereço",
-    dataIndex: "address",
-    key: "address",
-    render: (_, { user }) => user.address,
-  },
-  {
-    title: "Função",
-    dataIndex: "position",
-    key: "position",
+    title: "Estado",
+    key: "status",
+    render: (_, r) => {
+      const s = r.user?.status;
+      const map: Record<string, { color: string; label: string }> = {
+        ACTIVE: { color: "success", label: "Activo" },
+        INACTIVE: { color: "default", label: "Inactivo" },
+        SUSPENDED: { color: "warning", label: "Suspenso" },
+      };
+      const cfg = map[s ?? "ACTIVE"] ?? map.ACTIVE;
+      return (
+        <Tag color={cfg.color} variant="outlined">
+          {cfg.label}
+        </Tag>
+      );
+    },
   },
   {
     title: "Acções",
-    key: "action",
+    key: "actions",
     fixed: "right",
-    width: "6rem",
-    render: (_, { user }) => (
-      <Space size="small">
-        <Button
-          icon={<EditOutlined />}
-          onClick={(e) => {
-            onEdit(_);
-            e.stopPropagation();
-          }}
-        />
-        <Popconfirm
-          title={`Remover o funcionário ${user?.firstName}`}
-          okText="Sim"
-          cancelText="Não"
-          description={
-            <Typography.Text>
-              Tem certeza que pretende remover o{" "}
-              <strong>{user?.firstName}?</strong>
-            </Typography.Text>
-          }
-        >
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={(e) => {
-              onDelete(_);
-              e.stopPropagation();
-            }}
-          />
-        </Popconfirm>
-      </Space>
+    width: "10rem",
+    render: (_, record) => (
+      <DataActions
+        onEdit={(e) => {
+          onEdit(record);
+          e.stopPropagation();
+        }}
+        onDelete={(e) => {
+          onDelete(record);
+          e.stopPropagation();
+        }}
+        status={record.user?.status === "ACTIVE"}
+        enableLoading={suspendLoading}
+        onEnable={(e) => {
+          onSuspend(record);
+          e.stopPropagation();
+        }}
+        removeMessage={`${record.user?.firstName} ${record.user?.lastName}`}
+        titleRemove="Remover funcionário"
+      />
     ),
   },
 ];
