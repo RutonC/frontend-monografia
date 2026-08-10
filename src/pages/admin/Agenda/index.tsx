@@ -83,6 +83,27 @@ export default function PautaGlobal() {
     { enabled: !!filterSection },
   );
 
+  // Média/situação oficiais — vêm do motor de cálculo do servidor
+  // (média ponderada por peso, Recurso substitui Exame, limiar de
+  // aprovação vem das Definições da escola). Só disponível quando um
+  // trimestre específico está seleccionado; com "Todos os trimestres"
+  // cai-se de volta à média simples calculada aqui.
+  const { data: pautaData } = useFetch(
+    ["pauta", filterSection ?? "", filterTerm ?? ""],
+    `sections/${filterSection}/pauta?termId=${filterTerm}`,
+    { enabled: !!filterSection && !!filterTerm },
+  );
+  const officialByStudent: Record<
+    string,
+    { average: number | null; passed: boolean | null }
+  > = {};
+  (pautaData?.rows ?? []).forEach((r: any) => {
+    officialByStudent[r.studentId] = {
+      average: r.termAverage,
+      passed: r.passed,
+    };
+  });
+
   const yearOptions =
     yearsData?.academicYear?.map((y: IAcademicYear) => ({
       label: `${y.year}${y.active ? " ✓" : ""}`,
@@ -149,6 +170,21 @@ export default function PautaGlobal() {
     })),
   );
 
+  // Média/situação oficiais quando disponíveis (motor de cálculo do
+  // servidor — pesos + Recurso substitui Exame + limiar das Definições);
+  // caso contrário, média simples calculada aqui como aproximação.
+  const officialOrFallback = (studentId: string) => {
+    const official = officialByStudent[studentId];
+    if (official) return official;
+    const allValues = subjects.flatMap((s: any) =>
+      GRADE_TYPES.map(
+        (type) => gradeIndex[studentId]?.[s.subjectId]?.[type],
+      ).filter((v): v is number => v !== undefined),
+    );
+    const m = avg(allValues);
+    return { average: m, passed: m === null ? null : m >= 10 };
+  };
+
   // Coluna de média final
   const mediaCol = {
     title: "Média",
@@ -156,19 +192,14 @@ export default function PautaGlobal() {
     fixed: "right" as const,
     width: 80,
     render: (_: any, row: any) => {
-      const allValues = subjects.flatMap((s: any) =>
-        GRADE_TYPES.map(
-          (type) => gradeIndex[row.studentId]?.[s.subjectId]?.[type],
-        ).filter((v): v is number => v !== undefined),
-      );
-      const m = avg(allValues);
-      if (m === null) return "—";
+      const { average, passed } = officialOrFallback(row.studentId);
+      if (average === null) return "—";
       return (
         <Tag
-          color={m >= 10 ? "success" : "error"}
+          color={passed ? "success" : "error"}
           style={{ fontWeight: 600, fontSize: 13 }}
         >
-          {m.toFixed(1)}
+          {average.toFixed(1)}
         </Tag>
       );
     },
@@ -348,17 +379,13 @@ export default function PautaGlobal() {
                     fixed: "right",
                     width: 90,
                     render: (_: any, row: any) => {
-                      const allValues = subjects.flatMap((s: any) =>
-                        GRADE_TYPES.map(
-                          (type) =>
-                            gradeIndex[row.studentId]?.[s.subjectId]?.[type],
-                        ).filter((v): v is number => v !== undefined),
+                      const { average, passed } = officialOrFallback(
+                        row.studentId,
                       );
-                      const m = avg(allValues);
-                      if (m === null) return "—";
+                      if (average === null) return "—";
                       return (
-                        <Tag color={m >= 10 ? "success" : "error"}>
-                          {m >= 10 ? "Aprovado" : "Reprovado"}
+                        <Tag color={passed ? "success" : "error"}>
+                          {passed ? "Aprovado" : "Reprovado"}
                         </Tag>
                       );
                     },
@@ -379,16 +406,9 @@ export default function PautaGlobal() {
                 <Text type="secondary">
                   Total de alunos: {dataSource.length} · Aprovados:{" "}
                   {
-                    dataSource.filter((row) => {
-                      const allValues = subjects.flatMap((s: any) =>
-                        GRADE_TYPES.map(
-                          (type) =>
-                            gradeIndex[row.studentId]?.[s.subjectId]?.[type],
-                        ).filter((v): v is number => v !== undefined),
-                      );
-                      const m = avg(allValues);
-                      return m !== null && m >= 10;
-                    }).length
+                    dataSource.filter(
+                      (row) => officialOrFallback(row.studentId).passed,
+                    ).length
                   }
                 </Text>
               </div>

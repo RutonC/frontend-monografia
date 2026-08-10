@@ -5,22 +5,15 @@ import {
   CheckCircleOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
+import type { ColumnConfig, LineConfig } from "@ant-design/plots";
+import { Column, Line } from "@ant-design/plots";
 import { Avatar, Badge, Card, Col, Row, Spin, Tag, Typography } from "antd";
-import { useEffect, useState } from "react";
 import { BiCalendar, BiTime } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
-import { api, useAuthStore } from "../../store/authStore";
+import NewsFeed from "../../components/NewsFeed";
+import { useFetch } from "../../utils/fetch";
 
 const { Title, Text } = Typography;
-
-const DAY_LABELS: Record<string, string> = {
-  MONDAY: "Segunda",
-  TUESDAY: "Terça",
-  WEDNESDAY: "Quarta",
-  THURSDAY: "Quinta",
-  FRIDAY: "Sexta",
-  SATURDAY: "Sábado",
-};
 
 const TODAY_KEY = (() => {
   const d = new Date().getDay();
@@ -34,6 +27,16 @@ const TODAY_KEY = (() => {
     "SATURDAY",
   ][d];
 })();
+
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: "Segunda",
+  TUESDAY: "Terça",
+  WEDNESDAY: "Quarta",
+  THURSDAY: "Quinta",
+  FRIDAY: "Sexta",
+  SATURDAY: "Sábado",
+  SUNDAY: "Domingo",
+};
 
 function StatCard({
   icon,
@@ -88,41 +91,12 @@ function StatCard({
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-
-  const [sections, setSections] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
-  const [grades, setGrades] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([
-      api.get("/sections"),
-      api.get(`/schedules?teacherId=${user?.id}`),
-      api.get("/grades"),
-      api.get("/attendance"),
-    ])
-      .then(([s, sc, g, a]) => {
-        // cada controller usa a chave correcta
-        setSections(s.data?.sections ?? []);
-        setSchedules(sc.data?.schedules ?? []);
-        setGrades(g.data?.grades ?? []);
-        setAttendance(a.data?.attendance ?? []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [user?.id]);
-
-  const todaySchedule = schedules.filter((s) => s.dayOfWeek === TODAY_KEY);
-  const presentCount = attendance.filter((a) => a.status === "PRESENT").length;
-  const absentCount = attendance.filter((a) => a.status === "ABSENT").length;
-  const totalStudents = sections.reduce(
-    (acc, s) => acc + (s._count?.enrollments ?? 0),
-    0,
+  const { data, isPending } = useFetch(
+    ["dashboard-teacher"],
+    "dashboard/teacher",
   );
 
-  if (loading) {
+  if (isPending) {
     return (
       <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
         <Spin size="large" />
@@ -130,8 +104,41 @@ export default function TeacherDashboard() {
     );
   }
 
+  const totals = data?.totals ?? {
+    sections: 0,
+    students: 0,
+    gradesLaunched: 0,
+    pendingGrades: 0,
+  };
+  const gradeDistribution = data?.gradeDistribution ?? [];
+  const attendanceTrend = data?.attendanceTrend ?? [];
+  const weekSchedule = data?.weekSchedule ?? [];
+  const sections = data?.sections ?? [];
+
+  const todaySchedule = weekSchedule.filter(
+    (s: any) => s.dayOfWeek === TODAY_KEY,
+  );
+
+  const gradeDistConfig: ColumnConfig = {
+    data: gradeDistribution,
+    xField: "subject",
+    yField: "average",
+    height: 280,
+    style: { radiusTopLeft: 10, radiusTopRight: 10 },
+    axis: { y: { title: "Média (0–20)" } },
+  };
+
+  const attendanceTrendConfig: LineConfig = {
+    data: attendanceTrend,
+    xField: "month",
+    yField: "rate",
+    height: 280,
+    point: { shape: "circle" },
+    axis: { y: { title: "% presença" } },
+  };
+
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1280 }}>
+    <div>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <Title level={3} style={{ margin: 0 }}>
@@ -153,7 +160,7 @@ export default function TeacherDashboard() {
           <StatCard
             icon={<TeamOutlined />}
             label="Minhas Turmas"
-            value={sections.length}
+            value={totals.sections}
             color="#4f46e5"
             onClick={() => navigate("/teacher/turmas")}
           />
@@ -162,7 +169,7 @@ export default function TeacherDashboard() {
           <StatCard
             icon={<BookOutlined />}
             label="Alunos no Total"
-            value={totalStudents}
+            value={totals.students}
             color="#0ea5e9"
           />
         </Col>
@@ -170,7 +177,7 @@ export default function TeacherDashboard() {
           <StatCard
             icon={<CheckCircleOutlined />}
             label="Notas Lançadas"
-            value={grades.length}
+            value={totals.gradesLaunched}
             color="#16a34a"
             onClick={() => navigate("/teacher/notas")}
           />
@@ -178,15 +185,31 @@ export default function TeacherDashboard() {
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             icon={<CalendarOutlined />}
-            label="Presenças Hoje"
-            value={presentCount}
+            label="Notas por Lançar"
+            value={totals.pendingGrades}
             color="#f59e0b"
-            onClick={() => navigate("/teacher/assiduidade")}
+            onClick={() => navigate("/teacher/notas")}
           />
         </Col>
       </Row>
 
       <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Média por Disciplina"
+            style={{ borderRadius: 12, height: "100%" }}
+          >
+            <Column {...gradeDistConfig} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Tendência de Assiduidade" style={{ borderRadius: 12 }}>
+            <Line {...attendanceTrendConfig} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         {/* Aulas de hoje */}
         <Col xs={24} lg={12}>
           <Card
@@ -206,9 +229,9 @@ export default function TeacherDashboard() {
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 12 }}
               >
-                {todaySchedule.map((s) => (
+                {todaySchedule.map((s: any, idx: number) => (
                   <div
-                    key={s.id}
+                    key={idx}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -222,13 +245,13 @@ export default function TeacherDashboard() {
                     <BiTime size={18} color="#4f46e5" />
                     <div style={{ flex: 1 }}>
                       <Text strong style={{ display: "block" }}>
-                        {s.subject?.name ?? "—"}
+                        {s.subject}
                       </Text>
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {s.section?.name} · {s.startTime} – {s.endTime}
+                        {s.section} · {s.startTime} – {s.endTime}
                       </Text>
                     </div>
-                    <Tag color="blue">{s.section?.name}</Tag>
+                    <Tag color="blue">{s.section}</Tag>
                   </div>
                 ))}
               </div>
@@ -255,7 +278,7 @@ export default function TeacherDashboard() {
               <div
                 style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >
-                {sections.slice(0, 5).map((sec) => (
+                {sections.slice(0, 5).map((sec: any) => (
                   <div
                     key={sec.id}
                     style={{
@@ -295,46 +318,14 @@ export default function TeacherDashboard() {
             )}
           </Card>
         </Col>
+      </Row>
 
-        {/* Resumo assiduidade */}
-        {attendance.length > 0 && (
-          <Col xs={24}>
-            <Card
-              title="Resumo de Assiduidade"
-              style={{ borderRadius: 12 }}
-              extra={
-                <a onClick={() => navigate("/teacher/assiduidade")}>Registar</a>
-              }
-            >
-              <Row gutter={16}>
-                {[
-                  { label: "Presentes", count: presentCount, color: "#16a34a" },
-                  { label: "Ausentes", count: absentCount, color: "#dc2626" },
-                  {
-                    label: "Justificados",
-                    count: attendance.length - presentCount - absentCount,
-                    color: "#f59e0b",
-                  },
-                ].map((s) => (
-                  <Col xs={8} key={s.label}>
-                    <div style={{ textAlign: "center" }}>
-                      <div
-                        style={{
-                          fontSize: 32,
-                          fontWeight: 700,
-                          color: s.color,
-                        }}
-                      >
-                        {s.count}
-                      </div>
-                      <Text type="secondary">{s.label}</Text>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            </Card>
-          </Col>
-        )}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24}>
+          <Card title="Notícias" style={{ borderRadius: 12 }}>
+            <NewsFeed limit={5} />
+          </Card>
+        </Col>
       </Row>
     </div>
   );

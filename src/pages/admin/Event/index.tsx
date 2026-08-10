@@ -61,7 +61,10 @@ const SCOPE_LABEL: Record<string, string> = {
   EMPLOYEES: "Funcionários",
 };
 
-export default function Eventos() {
+// `readOnly` esconde a criação/edição/remoção — usado por perfis que só
+// têm leitura de eventos (Secretária/Financeiro/Professor: `authorize`
+// de escrita em /events exige "manage all", só Admin/SUPERADMIN têm).
+export default function Eventos({ readOnly = false }: { readOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form] = Form.useForm();
@@ -140,23 +143,27 @@ export default function Eventos() {
     const isUpcoming = dayjs(event.startDate).isAfter(now);
     return (
       <List.Item
-        actions={[
-          <Button
-            key="edit"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => onOpenEdit(event)}
-          />,
-          <Popconfirm
-            key="del"
-            title="Remover este evento?"
-            okText="Sim"
-            cancelText="Não"
-            onConfirm={() => handleDelete(event.id)}
-          >
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>,
-        ]}
+        actions={
+          readOnly
+            ? undefined
+            : [
+                <Button
+                  key="edit"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={() => onOpenEdit(event)}
+                />,
+                <Popconfirm
+                  key="del"
+                  title="Remover este evento?"
+                  okText="Sim"
+                  cancelText="Não"
+                  onConfirm={() => handleDelete(event.id)}
+                >
+                  <Button size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>,
+              ]
+        }
       >
         <List.Item.Meta
           avatar={
@@ -242,13 +249,15 @@ export default function Eventos() {
               </Space>
             }
             extra={
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={onOpenCreate}
-              >
-                Novo Evento
-              </Button>
+              !readOnly && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={onOpenCreate}
+                >
+                  Novo Evento
+                </Button>
+              )
             }
           >
             <List

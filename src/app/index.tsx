@@ -1,6 +1,6 @@
-import { DashboardOutlined } from "@ant-design/icons";
-import { ConfigProvider, Layout, Menu } from "antd";
-import { useEffect, useState } from "react";
+import { DashboardOutlined, NotificationOutlined } from "@ant-design/icons";
+import { ConfigProvider, Layout } from "antd";
+import { useEffect } from "react";
 import {
   BiBarChart,
   BiBookContent,
@@ -20,17 +20,14 @@ import { FaChalkboardTeacher } from "react-icons/fa";
 import { MdEventNote } from "react-icons/md";
 import { PiStudent } from "react-icons/pi";
 import { RiUserSettingsLine } from "react-icons/ri";
-import {
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
-import NavBar from "../components/Navbar";
+import { Route, Routes, useLocation } from "react-router-dom";
 
 // ── Admin pages ───────────────────────────────────────────────────
-import LancamentoNotas from "../pages/admin/Agenda";
+// NOTA: os nomes de ficheiro/pasta estavam trocados face ao conteúdo real —
+// Agenda/index.tsx é a Pauta (só leitura) e Marks/index.tsx é o Lançamento
+// (formulário de entrada de notas). Os imports abaixo corrigem isso; os
+// items do menu continuam a apontar para o componente certo.
+import PautaGlobal from "../pages/admin/Agenda";
 import Classes from "../pages/admin/classes";
 import Disciplinas from "../pages/admin/classes/subject";
 import Dashboard from "../pages/admin/dashboard";
@@ -39,7 +36,7 @@ import Employee from "../pages/admin/Employee";
 import Eventos from "../pages/admin/Event";
 import Pagamentos from "../pages/admin/Financial/Payments";
 import Encarregados from "../pages/admin/Guardian";
-import PautaGlobal from "../pages/admin/Marks";
+import LancamentoNotas from "../pages/admin/Marks";
 import Mensagens from "../pages/admin/Message"; // componente partilhado — funciona para admin e professor
 import RegistarAssiduidade from "../pages/admin/Presence";
 import Horario from "../pages/admin/Schedule";
@@ -72,69 +69,28 @@ import GuardianDashboard from "../pages/guardian/Dashboard";
 import GuardianLayout from "../pages/guardian/Layout";
 import GuardianStudentDetail from "../pages/guardian/StudentDetail";
 
+import Reports from "@/pages/admin/Reports";
+import Noticias from "@/pages/admin/News";
+import AppLayout from "../components/AppLayout";
+import ChangePasswordForced from "../pages/auth/ChangePassword";
 import Login from "../pages/auth/login";
+import FinanceDashboard from "../pages/finance/Dashboard";
+import PendingConfirmations from "../pages/finance/PendingConfirmations";
 import NotFound from "../pages/notfound";
+import SecretaryDashboard from "../pages/secretary/Dashboard";
+import DefinicoesPessoais from "../pages/settings/Personal";
+import EscolaSettings from "../pages/settings/School";
+import StudentAttendance from "../pages/student/Attendance";
+import StudentDashboard from "../pages/student/Dashboard";
+import StudentInvoices from "../pages/student/Invoices";
+import StudentReportCard from "../pages/student/ReportCard";
+import StudentSchedule from "../pages/student/Schedule";
 import { useAuthStore } from "../store/authStore";
 import { getItem } from "../utils/getItem";
 import theme from "../utils/theme";
-import styles from "./index.module.scss";
+import { RedirectAuthenticatedUser, RequireAuth, RoleRoute } from "./guards";
 
-const { Content, Header, Sider } = Layout;
-
-// ─────────────────────────────────────────────────────────────────
-//  Helpers
-// ─────────────────────────────────────────────────────────────────
-
-function homeForUser(type?: string): string {
-  switch (type) {
-    case "TEACHER":
-      return "/teacher";
-    case "GUARDIAN":
-      return "/guardian";
-    case "STUDENT":
-      return "/student";
-    default:
-      return "/";
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────
-//  Guards de rota
-// ─────────────────────────────────────────────────────────────────
-
-const RedirectAuthenticatedUser = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
-  const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated) return <>{children}</>;
-  return <Navigate to={homeForUser(user?.type)} replace />;
-};
-
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!["ADMIN", "SUPERADMIN"].includes(user?.type ?? ""))
-    return <Navigate to={homeForUser(user?.type)} replace />;
-  return <>{children}</>;
-};
-
-const TeacherRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.type !== "TEACHER")
-    return <Navigate to={homeForUser(user?.type)} replace />;
-  return <>{children}</>;
-};
-
-const GuardianRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, user } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (user?.type !== "GUARDIAN")
-    return <Navigate to={homeForUser(user?.type)} replace />;
-  return <>{children}</>;
-};
+const { Content } = Layout;
 
 // ─────────────────────────────────────────────────────────────────
 //  Menus
@@ -218,22 +174,19 @@ function useAdminMenuItems() {
       <BiCheckCircle size={20} />,
       <RegistarAssiduidade />,
     ),
-    getItem("Financeiro", "/financeiro", <BiCreditCardAlt size={20} />, null, [
-      getItem(
-        "Pagamentos",
-        "/pagamentos",
-        <BiRadioCircleMarked />,
-        <Pagamentos />,
-      ),
-      getItem(
-        "Mensalidades",
-        "/mensalidades",
-        <BiRadioCircleMarked />,
-        <>Mensalidades</>,
-      ),
-      getItem("Faturas", "/faturas", <BiRadioCircleMarked />, <>Faturas</>),
-    ]),
+    getItem(
+      "Financeiro",
+      "/pagamentos",
+      <BiCreditCardAlt size={20} />,
+      <Pagamentos />,
+    ),
     getItem("Eventos", "/eventos", <MdEventNote size={20} />, <Eventos />),
+    getItem(
+      "Notícias",
+      "/noticias",
+      <NotificationOutlined />,
+      <Noticias />,
+    ),
     getItem(
       "Mensagens",
       "/mensagens",
@@ -256,9 +209,9 @@ function useAdminMenuItems() {
           ),
         ]
       : []),
-    getItem("Relatórios", "/relatorios", <BiFile size={20} />, <>Relatórios</>),
+    getItem("Relatórios", "/relatorios", <BiFile size={20} />, <Reports />),
     getItem("Configurações", "/configuracoes", <BiCog size={20} />, null, [
-      getItem("Escola", "/escola", <BiRadioCircleMarked />, <>Escola</>),
+      getItem("Escola", "/escola", <BiRadioCircleMarked />, <EscolaSettings />),
       getItem(
         "Ano Lectivo",
         "/ano-lectivo",
@@ -307,6 +260,135 @@ function useTeacherMenuItems() {
       <BiMessageRounded size={20} />,
       <Mensagens />,
     ),
+    getItem(
+      "Notícias",
+      "/teacher/noticias",
+      <NotificationOutlined />,
+      <Noticias readOnly />,
+    ),
+    getItem(
+      "Eventos",
+      "/teacher/eventos",
+      <MdEventNote size={20} />,
+      <Eventos readOnly />,
+    ),
+  ];
+}
+
+/**
+ * Menu da Secretária — reaproveita as páginas já existentes de
+ * Alunos/Encarregados/Matrículas (RN003: gere registo académico e
+ * administrativo, nunca altera pagamentos).
+ */
+function useSecretaryMenuItems() {
+  return [
+    // O "element" não é usado por SecretaryLayout (rotas explícitas
+    // abaixo definem o próprio "index"); mantido só para a key/label/ícone.
+    getItem("Painel", "/secretary", <DashboardOutlined />, null),
+    getItem(
+      "Alunos",
+      "/secretary/alunos",
+      <PiStudent size={20} />,
+      <Students />,
+    ),
+    getItem(
+      "Encarregados",
+      "/secretary/encarregados",
+      <BiGroup size={20} />,
+      <Encarregados />,
+    ),
+    getItem(
+      "Inscrições",
+      "/secretary/inscricao",
+      <PiStudent size={20} />,
+      null,
+      [
+        getItem(
+          "Nova Inscrição",
+          "/secretary/inscricao/nova",
+          <BiRadioCircleMarked />,
+          <NovaInscricao />,
+        ),
+        getItem(
+          "Actualizar Inscrição",
+          "/secretary/inscricao/actualizar",
+          <BiRadioCircleMarked />,
+          <ActualizarInscricao />,
+        ),
+        getItem(
+          "Lista de Inscrições",
+          "/secretary/inscricao/lista",
+          <BiRadioCircleMarked />,
+          <ListaInscricoes />,
+        ),
+      ],
+    ),
+    getItem(
+      "Pagamentos por Confirmar",
+      "/secretary/pagamentos-por-confirmar",
+      <BiCreditCardAlt size={20} />,
+      <PendingConfirmations />,
+    ),
+    getItem(
+      "Notícias",
+      "/secretary/noticias",
+      <NotificationOutlined />,
+      <Noticias />,
+    ),
+    getItem(
+      "Eventos",
+      "/secretary/eventos",
+      <MdEventNote size={20} />,
+      <Eventos readOnly />,
+    ),
+    getItem(
+      "Mensagens",
+      "/secretary/mensagens",
+      <BiMessageRounded size={20} />,
+      <Mensagens />,
+    ),
+  ];
+}
+
+/**
+ * Menu do Financeiro — reaproveita a página já existente de Pagamentos
+ * (RN004: gere propinas/pagamentos, nunca mexe em notas).
+ */
+function useFinanceMenuItems() {
+  return [
+    // O "element" não é usado por FinanceLayout (rotas explícitas abaixo
+    // definem o próprio "index"); mantido só para a key/label/ícone.
+    getItem("Painel", "/finance", <DashboardOutlined />, null),
+    getItem(
+      "Pagamentos",
+      "/finance/pagamentos",
+      <BiCreditCardAlt size={20} />,
+      <Pagamentos />,
+    ),
+    getItem(
+      "Pagamentos por Confirmar",
+      "/finance/pagamentos-por-confirmar",
+      <BiCreditCardAlt size={20} />,
+      <PendingConfirmations />,
+    ),
+    getItem(
+      "Notícias",
+      "/finance/noticias",
+      <NotificationOutlined />,
+      <Noticias readOnly />,
+    ),
+    getItem(
+      "Eventos",
+      "/finance/eventos",
+      <MdEventNote size={20} />,
+      <Eventos readOnly />,
+    ),
+    getItem(
+      "Mensagens",
+      "/finance/mensagens",
+      <BiMessageRounded size={20} />,
+      <Mensagens />,
+    ),
   ];
 }
 
@@ -330,6 +412,7 @@ function getAdminSelectedKey(pathname: string): string {
   if (pathname.startsWith("/assiduidade")) return "/assiduidade";
   if (pathname.startsWith("/pagamentos")) return "/pagamentos";
   if (pathname.startsWith("/eventos")) return "/eventos";
+  if (pathname.startsWith("/noticias")) return "/noticias";
   if (pathname.startsWith("/mensagens")) return "/mensagens";
   if (pathname.startsWith("/encarregados")) return "/encarregados";
   if (pathname.startsWith("/utilizadores")) return "/utilizadores";
@@ -346,78 +429,40 @@ function getTeacherSelectedKey(pathname: string): string {
     return "/teacher/assiduidade";
   if (pathname.startsWith("/teacher/horario")) return "/teacher/horario";
   if (pathname.startsWith("/teacher/mensagens")) return "/teacher/mensagens";
+  if (pathname.startsWith("/teacher/noticias")) return "/teacher/noticias";
+  if (pathname.startsWith("/teacher/eventos")) return "/teacher/eventos";
   return "/teacher";
 }
 
-// ─────────────────────────────────────────────────────────────────
-//  Layout base reutilizável
-// ─────────────────────────────────────────────────────────────────
-
-interface AppLayoutProps {
-  menuItems: any[];
-  selectedKey: string;
-  children: React.ReactNode;
+function getSecretarySelectedKey(pathname: string): string {
+  if (pathname === "/secretary") return "/secretary";
+  if (pathname.startsWith("/secretary/alunos")) return "/secretary/alunos";
+  if (pathname.startsWith("/secretary/encarregados"))
+    return "/secretary/encarregados";
+  if (pathname.startsWith("/secretary/inscricao/nova"))
+    return "/secretary/inscricao/nova";
+  if (pathname.startsWith("/secretary/inscricao/actualizar"))
+    return "/secretary/inscricao/actualizar";
+  if (pathname.startsWith("/secretary/inscricao/lista"))
+    return "/secretary/inscricao/lista";
+  if (pathname.startsWith("/secretary/pagamentos-por-confirmar"))
+    return "/secretary/pagamentos-por-confirmar";
+  if (pathname.startsWith("/secretary/noticias")) return "/secretary/noticias";
+  if (pathname.startsWith("/secretary/eventos")) return "/secretary/eventos";
+  if (pathname.startsWith("/secretary/mensagens"))
+    return "/secretary/mensagens";
+  return "/secretary";
 }
 
-function AppLayout({ menuItems, selectedKey, children }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const navigate = useNavigate();
-
-  return (
-    <Layout style={{ minHeight: "100vh" }} className={styles.mainLayout}>
-      <Sider
-        width={280}
-        collapsed={collapsed}
-        collapsible
-        theme="light"
-        trigger={null}
-        onCollapse={setCollapsed}
-        className={`${styles.aside} ${collapsed ? styles.collapsed : ""}`}
-        style={{
-          overflow: "auto",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          insetInlineStart: 0,
-          scrollbarWidth: "thin",
-          scrollbarGutter: "stable",
-        }}
-      >
-        <Menu
-          theme="light"
-          mode="inline"
-          className={styles.menu}
-          items={menuItems}
-          selectedKeys={[selectedKey]}
-          onClick={({ key }) => navigate(key)}
-          style={{
-            overflow: "auto",
-            height: "80vh",
-            position: "sticky",
-            bottom: 40,
-            scrollbarWidth: "thin",
-            scrollbarGutter: "stable",
-          }}
-        />
-      </Sider>
-      <Layout>
-        <Header
-          style={{
-            position: "sticky",
-            top: 0,
-            paddingInline: 25,
-            zIndex: 1,
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <NavBar collapse={collapsed} setIsCollapse={setCollapsed} />
-        </Header>
-        <Content>{children}</Content>
-      </Layout>
-    </Layout>
-  );
+function getFinanceSelectedKey(pathname: string): string {
+  if (pathname === "/finance") return "/finance";
+  if (pathname.startsWith("/finance/pagamentos-por-confirmar"))
+    return "/finance/pagamentos-por-confirmar";
+  if (pathname.startsWith("/finance/pagamentos")) return "/finance/pagamentos";
+  if (pathname.startsWith("/finance/noticias")) return "/finance/noticias";
+  if (pathname.startsWith("/finance/eventos")) return "/finance/eventos";
+  if (pathname.startsWith("/finance/mensagens")) return "/finance/mensagens";
+  return "/finance";
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -451,18 +496,23 @@ const adminExtraRoutes = [
     path: "/professores/perfil/:slug",
     element: <TeacherProfile />,
   },
+  {
+    key: "personal-settings",
+    path: "/definicoes-pessoais",
+    element: <DefinicoesPessoais />
+  },
 ];
 
 function AdminLayout() {
   const { pathname } = useLocation();
   const menuItems = useAdminMenuItems();
   const selectedKey = getAdminSelectedKey(pathname);
-  const cc = styles.contentLayout;
+  // const cc = styles.contentLayout;
 
   const wrap = (el: React.ReactNode) => (
-    <AdminRoute>
-      <Content className={cc}>{el}</Content>
-    </AdminRoute>
+    <RoleRoute allowed={["ADMIN", "SUPERADMIN"]}>
+      <Content>{el}</Content>
+    </RoleRoute>
   );
 
   return (
@@ -503,12 +553,11 @@ function TeacherLayout() {
   const { pathname } = useLocation();
   const menuItems = useTeacherMenuItems();
   const selectedKey = getTeacherSelectedKey(pathname);
-  const cc = styles.contentLayout;
 
   const wrap = (el: React.ReactNode) => (
-    <TeacherRoute>
-      <Content className={cc}>{el}</Content>
-    </TeacherRoute>
+    <RoleRoute allowed={["TEACHER"]}>
+      <Content>{el}</Content>
+    </RoleRoute>
   );
 
   return (
@@ -523,10 +572,187 @@ function TeacherLayout() {
         <Route path="assiduidade" element={wrap(<TeacherAssiduidade />)} />
         <Route path="horario" element={wrap(<TeacherHorario />)} />
         <Route path="mensagens" element={wrap(<Mensagens />)} />
+        <Route path="noticias" element={wrap(<Noticias readOnly />)} />
+        <Route path="eventos" element={wrap(<Eventos readOnly />)} />
 
         {/* perfil do próprio professor */}
         <Route path="perfil/:slug" element={wrap(<TeacherProfile />)} />
+        <Route
+          path="definicoes-pessoais"
+          element={wrap(<DefinicoesPessoais />)}
+        />
 
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SecretaryLayout — montado em /secretary/*
+//  Fase 3: reaproveita páginas existentes; dashboard próprio na Fase 7.
+// ─────────────────────────────────────────────────────────────────
+
+function SecretaryLayout() {
+  const { pathname } = useLocation();
+  const menuItems = useSecretaryMenuItems();
+  const selectedKey = getSecretarySelectedKey(pathname);
+
+  const wrap = (el: React.ReactNode) => (
+    <RoleRoute allowed={["SECRETARY"]}>
+      <Content>{el}</Content>
+    </RoleRoute>
+  );
+
+  return (
+    <AppLayout menuItems={menuItems} selectedKey={selectedKey}>
+      <Routes>
+        <Route index element={wrap(<SecretaryDashboard />)} />
+        <Route path="alunos" element={wrap(<Students />)} />
+        <Route path="encarregados" element={wrap(<Encarregados />)} />
+        <Route path="inscricao/nova" element={wrap(<NovaInscricao />)} />
+        <Route
+          path="inscricao/actualizar"
+          element={wrap(<ActualizarInscricao />)}
+        />
+        <Route path="inscricao/lista" element={wrap(<ListaInscricoes />)} />
+        <Route
+          path="pagamentos-por-confirmar"
+          element={wrap(<PendingConfirmations />)}
+        />
+        <Route path="noticias" element={wrap(<Noticias />)} />
+        <Route path="eventos" element={wrap(<Eventos readOnly />)} />
+        <Route path="mensagens" element={wrap(<Mensagens />)} />
+        <Route
+          path="definicoes-pessoais"
+          element={wrap(<DefinicoesPessoais />)}
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  FinanceLayout — montado em /finance/*
+//  Fase 3: reaproveita páginas existentes; dashboard próprio na Fase 7.
+// ─────────────────────────────────────────────────────────────────
+
+function FinanceLayout() {
+  const { pathname } = useLocation();
+  const menuItems = useFinanceMenuItems();
+  const selectedKey = getFinanceSelectedKey(pathname);
+
+  const wrap = (el: React.ReactNode) => (
+    <RoleRoute allowed={["FINANCE"]}>
+      <Content>{el}</Content>
+    </RoleRoute>
+  );
+
+  return (
+    <AppLayout menuItems={menuItems} selectedKey={selectedKey}>
+      <Routes>
+        <Route index element={wrap(<FinanceDashboard />)} />
+        <Route path="pagamentos" element={wrap(<Pagamentos />)} />
+        <Route
+          path="pagamentos-por-confirmar"
+          element={wrap(<PendingConfirmations />)}
+        />
+        <Route path="noticias" element={wrap(<Noticias readOnly />)} />
+        <Route path="eventos" element={wrap(<Eventos readOnly />)} />
+        <Route path="mensagens" element={wrap(<Mensagens />)} />
+        <Route
+          path="definicoes-pessoais"
+          element={wrap(<DefinicoesPessoais />)}
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  StudentLayout — montado em /student/*
+// ─────────────────────────────────────────────────────────────────
+
+function useStudentMenuItems() {
+  return [
+    getItem("Painel", "/student", <DashboardOutlined />, <StudentDashboard />),
+    getItem(
+      "Boletim",
+      "/student/boletim",
+      <BiBarChart size={20} />,
+      <StudentReportCard />,
+    ),
+    getItem(
+      "Assiduidade",
+      "/student/assiduidade",
+      <BiCheckCircle size={20} />,
+      <StudentAttendance />,
+    ),
+    getItem(
+      "Horário",
+      "/student/horario",
+      <BiCalendar size={20} />,
+      <StudentSchedule />,
+    ),
+    getItem(
+      "Propinas",
+      "/student/propinas",
+      <BiCreditCardAlt size={20} />,
+      <StudentInvoices />,
+    ),
+    getItem(
+      "Notícias",
+      "/student/noticias",
+      <NotificationOutlined />,
+      <Noticias readOnly />,
+    ),
+    getItem(
+      "Eventos",
+      "/student/eventos",
+      <MdEventNote size={20} />,
+      <Eventos readOnly />,
+    ),
+  ];
+}
+
+function getStudentSelectedKey(pathname: string): string {
+  if (pathname.startsWith("/student/boletim")) return "/student/boletim";
+  if (pathname.startsWith("/student/assiduidade"))
+    return "/student/assiduidade";
+  if (pathname.startsWith("/student/horario")) return "/student/horario";
+  if (pathname.startsWith("/student/propinas")) return "/student/propinas";
+  if (pathname.startsWith("/student/noticias")) return "/student/noticias";
+  if (pathname.startsWith("/student/eventos")) return "/student/eventos";
+  return "/student";
+}
+
+function StudentLayout() {
+  const { pathname } = useLocation();
+  const menuItems = useStudentMenuItems();
+  const selectedKey = getStudentSelectedKey(pathname);
+
+  const wrap = (el: React.ReactNode) => (
+    <RoleRoute allowed={["STUDENT"]}>
+      <Content>{el}</Content>
+    </RoleRoute>
+  );
+
+  return (
+    <AppLayout menuItems={menuItems} selectedKey={selectedKey}>
+      <Routes>
+        <Route index element={wrap(<StudentDashboard />)} />
+        <Route path="boletim" element={wrap(<StudentReportCard />)} />
+        <Route path="assiduidade" element={wrap(<StudentAttendance />)} />
+        <Route path="horario" element={wrap(<StudentSchedule />)} />
+        <Route path="propinas" element={wrap(<StudentInvoices />)} />
+        <Route path="noticias" element={wrap(<Noticias readOnly />)} />
+        <Route path="eventos" element={wrap(<Eventos readOnly />)} />
+        <Route
+          path="definicoes-pessoais"
+          element={wrap(<DefinicoesPessoais />)}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppLayout>
@@ -555,47 +781,55 @@ export default function App() {
             </RedirectAuthenticatedUser>
           }
         />
+        <Route
+          path="/mudar-password"
+          element={
+            <RequireAuth>
+              <ChangePasswordForced />
+            </RequireAuth>
+          }
+        />
 
         {/* Painel do Encarregado */}
         <Route
           path="/guardian"
           element={
-            <GuardianRoute>
+            <RoleRoute allowed={["GUARDIAN"]}>
               <GuardianLayout>
                 <GuardianDashboard />
               </GuardianLayout>
-            </GuardianRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/guardian/educandos/:id"
           element={
-            <GuardianRoute>
+            <RoleRoute allowed={["GUARDIAN"]}>
               <GuardianLayout>
                 <GuardianStudentDetail />
               </GuardianLayout>
-            </GuardianRoute>
+            </RoleRoute>
           }
         />
         <Route
           path="/guardian/perfil"
           element={
-            <GuardianRoute>
+            <RoleRoute allowed={["GUARDIAN"]}>
               <GuardianLayout>
-                <div style={{ padding: 24 }}>Perfil do Encarregado</div>
+                <DefinicoesPessoais />
               </GuardianLayout>
-            </GuardianRoute>
+            </RoleRoute>
           }
         />
         {/* Mensagens do encarregado — mesmo componente, isGuardian=true detectado dentro */}
         <Route
           path="/guardian/mensagens"
           element={
-            <GuardianRoute>
+            <RoleRoute allowed={["GUARDIAN"]}>
               <GuardianLayout>
                 <Mensagens />
               </GuardianLayout>
-            </GuardianRoute>
+            </RoleRoute>
           }
         />
 
@@ -603,9 +837,39 @@ export default function App() {
         <Route
           path="/teacher/*"
           element={
-            <TeacherRoute>
+            <RoleRoute allowed={["TEACHER"]}>
               <TeacherLayout />
-            </TeacherRoute>
+            </RoleRoute>
+          }
+        />
+
+        {/* Painel da Secretária — /secretary/* */}
+        <Route
+          path="/secretary/*"
+          element={
+            <RoleRoute allowed={["SECRETARY"]}>
+              <SecretaryLayout />
+            </RoleRoute>
+          }
+        />
+
+        {/* Painel do Financeiro — /finance/* */}
+        <Route
+          path="/finance/*"
+          element={
+            <RoleRoute allowed={["FINANCE"]}>
+              <FinanceLayout />
+            </RoleRoute>
+          }
+        />
+
+        {/* Painel do Aluno — /student/* */}
+        <Route
+          path="/student/*"
+          element={
+            <RoleRoute allowed={["STUDENT"]}>
+              <StudentLayout />
+            </RoleRoute>
           }
         />
 

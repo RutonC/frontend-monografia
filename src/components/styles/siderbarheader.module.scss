@@ -1,0 +1,38 @@
+.container {
+  padding: 10px 0;
+  background-color: var(--lg-primary);
+  border-radius: 4px 4px 0 0;
+
+  .titleContainer {
+    height: 40px;
+
+    .title {
+      font-weight: 800;
+      font-size: 36px;
+      color: var(--lg-mc-50);
+      padding-left: 24px;
+    }
+  }
+
+  .collapsedIconContainer {
+    margin-inline: 4px;
+    border-radius: 4px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .collapsedIcon {
+      height: 40px;
+      font-size: 24px;
+      color: var(--lg-mc-50);
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: var(--lg-bg);
+      .collapsedIcon {
+        color: var(--lg-primary);
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+.content {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 8px;
+
+  h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  h2 {
+    font-size: 16px;
+    margin-top: 24px;
+    margin-bottom: 8px;
+    color: var(--color-text-primary, #1f1f1f);
+  }
+
+  p,
+  li {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--color-text-secondary, #595959);
+  }
+
+  ul,
+  ol {
+    padding-left: 20px;
+    margin-bottom: 12px;
+  }
+
+  strong {
+    color: var(--color-text-primary, #1f1f1f);
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--color-border-tertiary, #f0f0f0);
+    margin: 20px 0;
+  }
+
+  em {
+    color: var(--color-text-tertiary, #8c8c8c);
+  }
+}

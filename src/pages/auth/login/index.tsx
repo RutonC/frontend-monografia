@@ -1,13 +1,15 @@
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Alert, Button, Card, Flex, Form, Input, Typography } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import AvisoLegalModal from "../../../components/AvisoLegalModal";
 import { useAuthStore } from "../../../store/authStore";
 
 function Login() {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const [avisoLegalOpen, setAvisoLegalOpen] = useState(false);
   const { login, error, isLoading, isAuthenticated, clearError } =
     useAuthStore();
 
@@ -53,7 +55,10 @@ function Login() {
           justifyContent: "center",
         }}
       >
-        <Typography.Title level={3} style={{ marginBottom: 32 }}>
+        <Typography.Title
+          level={3}
+          style={{ marginBottom: 32, textAlign: "center" }}
+        >
           Entrar no sistema
         </Typography.Title>
 
@@ -82,7 +87,7 @@ function Login() {
           >
             <Input
               prefix={<UserOutlined style={{ color: "#bfbfbf" }} />}
-              placeholder="Ex: PROF-2024-001"
+              placeholder="Identificador"
               autoComplete="username"
             />
           </Form.Item>
@@ -114,8 +119,15 @@ function Login() {
         <span style={{ color: "#757575" }}>
           Copyright 2025. AMS. Todos os direitos reservados.
         </span>
-        <Link to="/aviso-legal">Aviso Legal</Link>
+        <Typography.Link onClick={() => setAvisoLegalOpen(true)}>
+          Aviso Legal
+        </Typography.Link>
       </Flex>
+
+      <AvisoLegalModal
+        open={avisoLegalOpen}
+        onClose={() => setAvisoLegalOpen(false)}
+      />
     </Content>
   );
 }

@@ -269,7 +269,7 @@ export default function TeacherPresence() {
   const filtersComplete = !!selSection && !!selSubject && !!selTerm;
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100 }}>
+    <div>
       <div style={{ marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0 }}>
           Registo de Assiduidade
@@ -340,7 +340,6 @@ export default function TeacherPresence() {
               <div style={{ display: "flex", gap: 6 }}>
                 <Button
                   icon={<CheckOutlined />}
-                  size="small"
                   onClick={() => markAll("PRESENT")}
                   disabled={rows.length === 0}
                   title="Todos presentes"
@@ -349,7 +348,6 @@ export default function TeacherPresence() {
                 </Button>
                 <Button
                   icon={<CloseOutlined />}
-                  size="small"
                   danger
                   onClick={() => markAll("ABSENT")}
                   disabled={rows.length === 0}

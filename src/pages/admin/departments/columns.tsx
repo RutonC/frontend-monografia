@@ -19,9 +19,6 @@ export const columns = ({
   onDelete,
 }: Handlers): TableColumnsType<IDepartment> => [
   {
-    key: "id",
-  },
-  {
     title: "Nome do departamento",
     dataIndex: "name",
     key: "name",
@@ -42,32 +39,35 @@ export const columns = ({
     key: "action",
     fixed: "right",
     width: "6rem",
-    render: (_, { name }) => (
+    render: (_, record) => (
       <Space size="small">
         <Button
           icon={<EditOutlined />}
           onClick={(e) => {
-            onEdit(_);
+            onEdit(record);
             e.stopPropagation();
           }}
         />
         <Popconfirm
-          title={`Remover o departemento ${name}`}
+          title={`Remover o departemento ${record.name}`}
           okText="Sim"
           cancelText="Não"
           description={
             <Typography.Text>
-              Tem certeza que pretende remover o <strong>{name}?</strong>
+              Tem certeza que pretende remover o{" "}
+              <strong>{record.name}?</strong>
             </Typography.Text>
           }
+          onConfirm={(e) => {
+            e?.stopPropagation();
+            onDelete(record);
+          }}
+          onCancel={(e) => e?.stopPropagation()}
         >
           <Button
             danger
             icon={<DeleteOutlined />}
-            onClick={(e) => {
-              onDelete(_);
-              e.stopPropagation();
-            }}
+            onClick={(e) => e.stopPropagation()}
           />
         </Popconfirm>
       </Space>

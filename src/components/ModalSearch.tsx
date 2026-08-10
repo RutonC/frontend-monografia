@@ -1,5 +1,4 @@
 import { Divider, Input, Modal, Spin, Tag, Typography } from "antd";
-import axios from "axios";
 import { useEffect, useState, type JSX } from "react";
 import { BiSearch } from "react-icons/bi";
 import {
@@ -9,7 +8,7 @@ import {
   HiOutlineUser,
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
-import { baseURL } from "../utils/constants";
+import axiosInstance from "../utils/axiosInstance";
 
 const { Text } = Typography;
 
@@ -91,9 +90,8 @@ export default function Search({ open, setOpen }: SearchProps) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`${baseURL.API_URL}/search`, {
+        const res = await axiosInstance.get("/search", {
           params: { q: search, limit: 5 },
-          withCredentials: true,
         });
         setResults(res.data.results);
         setElapsed(res.data.elapsed);

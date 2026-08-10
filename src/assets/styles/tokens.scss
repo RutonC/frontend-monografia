@@ -47,4 +47,31 @@
   --lg-r-lg: 15px; // alinhado ao borderRadius do Ant
   --lg-r-xl: 24px;
   --lg-r-pill: 999px;
+
+  // Page-level (usados em main.scss / _mixins.scss)
+  --lg-bg: #fafafa; // igual ao colorBgBase do ConfigProvider (theme.ts)
+  --lg-text: var(--lg-ink-900);
+  --lg-gradient-brand: linear-gradient(
+    135deg,
+    var(--lg-mc-600),
+    var(--lg-mc-800)
+  );
+
+  // Aliases --color-* — várias páginas foram escritas contra esta
+  // convenção, que nunca chegou a ser definida. Mapeadas para os
+  // tokens --lg-* acima em vez de duplicar valores.
+  --color-text-primary: var(--lg-ink-900);
+  --color-text-secondary: var(--lg-ink-500);
+  --color-text-tertiary: var(--lg-ink-400);
+  --color-text-success: var(--lg-success);
+  --color-text-warning: var(--lg-warn);
+  --color-text-danger: var(--lg-heart);
+
+  --color-background-secondary: var(--lg-ink-100);
+  --color-background-tertiary: var(--lg-ink-50);
+  --color-background-danger: var(--lg-heart-bg);
+
+  --color-border-secondary: var(--lg-ink-300);
+  --color-border-tertiary: var(--lg-ink-200);
+  --color-border-danger: var(--lg-heart);
 }

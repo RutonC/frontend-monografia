@@ -1,124 +1,166 @@
-import { CalendarOutlined, ContactsOutlined, MoneyCollectOutlined, TeamOutlined } from "@ant-design/icons"
-import { Card, Col, Divider, Flex, Layout, Row, Select, Typography } from "antd"
-import { useState } from "react"
-import ChartEarnings from "../../../components/ChartEarnings"
-import ChartPieStudents from "../../../components/ChartPieStudents"
-import EventsCalendar from "../../../components/EventsCalendar"
-import NoticeBoard from "../../../components/NoticeBoard"
-
-const cardItemsInfo = [
-  {
-    id:'1',
-    title:"Estudantes",
-    numero:12333,
-    icon:<TeamOutlined style={{padding:10, backgroundColor:"#2294f565", borderRadius:100, color:"#2294f5"}}/>
-  },
-  {
-    id:'2',
-    title:"Professores",
-    numero:133,
-    icon:<ContactsOutlined style={{padding:10, backgroundColor:"#7415c865", borderRadius:100, color:"#7415c8"}}/>
-  },
-  {
-    id:'3',
-    title:"Funcionários",
-    numero:433,
-    icon:<TeamOutlined style={{padding:10, backgroundColor:"#2294f565", borderRadius:100, color:"#2294f5"}}/>
-  },
-  {
-    id:'4',
-    title:"Ganhos",
-    numero:12333,
-    icon:<MoneyCollectOutlined style={{padding:10, backgroundColor:"#14d74f65", borderRadius:100, color:"#14d74f"}}/>
-  },
-]
-
+import {
+  ContactsOutlined,
+  MoneyCollectOutlined,
+  TeamOutlined,
+} from "@ant-design/icons";
+import type { ColumnConfig, PieConfig } from "@ant-design/plots";
+import { Column, Pie } from "@ant-design/plots";
+import { Card, Col, Flex, Layout, Row, Typography } from "antd";
+import EventsCalendar from "../../../components/EventsCalendar";
+import NewsFeed from "../../../components/NewsFeed";
+import { useFetch } from "../../../utils/fetch";
 
 function Dashboard() {
-  const [earning, setEarning] = useState<string>('anual');
+  const { data, isPending } = useFetch(["dashboard-admin"], "dashboard/admin");
 
-  const onChangeEarning = (values:string) => {
-    console.log("Valor",values)
-    setEarning(values)
-  }
+  const totals = data?.totals ?? {
+    students: 0,
+    teachers: 0,
+    employees: 0,
+    activeEnrollments: 0,
+  };
+  const enrollmentsByLevel = data?.enrollmentsByLevel ?? [];
+  const genderDistribution = data?.genderDistribution ?? [];
+  const revenue = data?.revenue ?? { expected: 0, collected: 0, academicYear: null };
+  const overdueByLevel = data?.overdueByLevel ?? [];
+
+  const cardItemsInfo = [
+    {
+      id: "1",
+      title: "Estudantes",
+      numero: totals.students,
+      icon: (
+        <TeamOutlined
+          style={{ padding: 10, backgroundColor: "#2294f565", borderRadius: 100, color: "#2294f5" }}
+        />
+      ),
+    },
+    {
+      id: "2",
+      title: "Professores",
+      numero: totals.teachers,
+      icon: (
+        <ContactsOutlined
+          style={{ padding: 10, backgroundColor: "#7415c865", borderRadius: 100, color: "#7415c8" }}
+        />
+      ),
+    },
+    {
+      id: "3",
+      title: "Funcionários",
+      numero: totals.employees,
+      icon: (
+        <TeamOutlined
+          style={{ padding: 10, backgroundColor: "#2294f565", borderRadius: 100, color: "#2294f5" }}
+        />
+      ),
+    },
+    {
+      id: "4",
+      title: "Matrículas Activas",
+      numero: totals.activeEnrollments,
+      icon: (
+        <MoneyCollectOutlined
+          style={{ padding: 10, backgroundColor: "#14d74f65", borderRadius: 100, color: "#14d74f" }}
+        />
+      ),
+    },
+  ];
+
+  const enrollmentConfig: ColumnConfig = {
+    data: enrollmentsByLevel,
+    xField: "level",
+    yField: "count",
+    height: 320,
+    style: { radiusTopLeft: 10, radiusTopRight: 10 },
+  };
+
+  const revenueConfig: ColumnConfig = {
+    data: [
+      { type: "Esperada", valor: revenue.expected },
+      { type: "Cobrada", valor: revenue.collected },
+    ],
+    xField: "type",
+    yField: "valor",
+    colorField: "type",
+    height: 320,
+    style: { radiusTopLeft: 10, radiusTopRight: 10 },
+  };
+
+  const genderConfig: PieConfig = {
+    data: genderDistribution,
+    angleField: "count",
+    colorField: "gender",
+    innerRadius: 0.6,
+    height: 320,
+    legend: { color: { position: "right" } },
+  };
+
+  const overdueConfig: ColumnConfig = {
+    data: overdueByLevel,
+    xField: "level",
+    yField: "count",
+    height: 320,
+    style: { radiusTopLeft: 10, radiusTopRight: 10, fill: "#dc2626" },
+  };
+
   return (
     <Layout.Content>
-      <Row gutter={[16,16]}>
-        {
-          cardItemsInfo?.map((card,index)=>
-            <Col span={6} key={index}>
-              <Card  
-              title={card.title}
-              extra={card.icon}
-              >
-                <Flex>
-                  <Typography.Title level={3}>{card.numero}</Typography.Title> 
-                </Flex>
-              </Card>
-            </Col>
-          )
-        }
+      <Row gutter={[16, 16]}>
+        {cardItemsInfo.map((card, index) => (
+          <Col span={6} key={index}>
+            <Card title={card.title} extra={card.icon}>
+              <Flex>
+                <Typography.Title level={3}>{card.numero}</Typography.Title>
+              </Flex>
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      <Row gutter={[16,16]} style={{marginTop:30}}>
-        <Col span={16}>
-        <Card
-          title="Ganhos"
-          extra={
-            <Select
-              prefix={<CalendarOutlined/>}
-              defaultValue={"anual"}
-              options={[
-                {label:"Semanal",value:"semanal"},
-                {label:"Mensal",value:"mensal"},
-                {label:"Anual",value:"anual"},
-              ]}
-
-              onChange={onChangeEarning}
-            />
-          }
-        >
-          <ChartEarnings status={earning} />
-        </Card>
+      <Row gutter={[16, 16]} style={{ marginTop: 30 }}>
+        <Col span={12}>
+          <Card title="Matrículas por Classe" loading={isPending}>
+            <Column {...enrollmentConfig} />
+          </Card>
         </Col>
-        <Col span={8}>
-        <Card>
-          <ChartPieStudents/>
-          <Flex justify="space-between">
-          <Flex>
-             <Divider type="vertical" size="large" style={{height:54, borderWidth:4, borderColor:"#1252b1", borderRadius:2}}/>
-             <Flex vertical>
-              <span>Estudantes Masculinos</span>
-              <Typography.Title level={5}>35%</Typography.Title>
-             </Flex>
-          </Flex>
-          <Flex>
-             <Divider type="vertical" size="large" style={{height:54, borderWidth:4,borderColor:"#fe784a", borderRadius:2}}/>
-             <Flex vertical>
-              <span>Estudantes Femininas</span>
-              <Typography.Title level={5}>65%</Typography.Title>
-             </Flex>
-          </Flex>
-          </Flex>
-        </Card>
+        <Col span={12}>
+          <Card title="Alunos por Género" loading={isPending}>
+            <Pie {...genderConfig} />
+          </Card>
         </Col>
       </Row>
 
-      <Row gutter={[16,16]} style={{marginTop:30}}>
+      <Row gutter={[16, 16]} style={{ marginTop: 30 }}>
+        <Col span={12}>
+          <Card
+            title={`Receita ${revenue.academicYear ?? ""} — Esperada vs Cobrada`}
+            loading={isPending}
+          >
+            <Column {...revenueConfig} />
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="Facturas em Atraso por Classe" loading={isPending}>
+            <Column {...overdueConfig} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 30 }}>
         <Col span={16}>
-          <Card title="Quadro de Avisos">  
-            <NoticeBoard/>  
+          <Card title="Quadro de Avisos">
+            <NewsFeed limit={6} />
           </Card>
         </Col>
         <Col span={8}>
-        <Card title="Calendário de Eventos">
-          <EventsCalendar/>
-        </Card>
+          <Card title="Calendário de Eventos">
+            <EventsCalendar />
+          </Card>
         </Col>
       </Row>
-      
     </Layout.Content>
-  )
+  );
 }
 
-export default Dashboard
+export default Dashboard;

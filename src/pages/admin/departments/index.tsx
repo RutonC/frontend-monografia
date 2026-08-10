@@ -1,10 +1,19 @@
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Form, Modal, Table, type TableProps } from "antd";
+import {
+  Button,
+  Card,
+  Form,
+  message,
+  Modal,
+  Table,
+  type TableProps,
+} from "antd";
 import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import { Input } from "../../../components/Input";
 import {
   useFetch,
+  useMutationDel,
   useMutationPatch,
   useMutationPost,
 } from "../../../utils/fetch";
@@ -27,6 +36,8 @@ function Departments() {
   );
 
   const { mutateAsyncPatch } = useMutationPatch(["departments"], "departments");
+
+  const { mutateAsyncDel } = useMutationDel(["departments"], "departments");
 
   const {
     data: allDepartments,
@@ -66,8 +77,18 @@ function Departments() {
     );
   };
 
-  const onDelete = (values: any) => {
-    console.log(values);
+  const onDelete = (values: IDepartment) => {
+    mutateAsyncDel(values.id)
+      .then(() => {
+        message.success("Departamento removido com sucesso.");
+        refetch();
+      })
+      .catch((error: any) => {
+        message.error(
+          error?.response?.data?.message ??
+            "Não foi possível remover o departamento.",
+        );
+      });
   };
 
   const onSelectChange = (newSelectedRowKeys: React.Key[]) => {

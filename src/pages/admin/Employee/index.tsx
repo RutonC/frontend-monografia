@@ -8,8 +8,10 @@ import {
   DatePicker,
   Drawer,
   Form,
+  Modal,
   Row,
   Table,
+  Typography,
   message,
 } from "antd";
 import dayjs from "dayjs";
@@ -47,6 +49,9 @@ export default function Employee() {
   const [selectedDeptName, setSelectedDeptName] = useState<string | null>(null);
   const [editDeptName, setEditDeptName] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
+  const [accountType, setAccountType] = useState<
+    "EMPLOYEE" | "TEACHER" | "SECRETARY" | "FINANCE"
+  >("EMPLOYEE");
 
   const [addForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -91,7 +96,7 @@ export default function Employee() {
   const onOpenAdd = () => {
     addForm.resetFields();
     setSelectedDeptName(null);
-    setIsTeacher(false);
+    setAccountType("EMPLOYEE");
     setAddOpen(true);
   };
 
@@ -103,12 +108,11 @@ export default function Employee() {
   const handleDeptChangeAdd = (id: string) => {
     const dept = deptsData?.departments?.find((d: IDepartment) => d.id === id);
     setSelectedDeptName(dept?.name ?? null);
-    setIsTeacher(dept?.name?.toLowerCase().includes("professor") ?? false);
     addForm.setFieldValue("position", undefined);
   };
 
   const handleCreate = async (values: any) => {
-    await mutateCreate({
+    const result = await mutateCreate({
       firstName: values.firstName,
       lastName: values.lastName,
       email: values.email,
@@ -126,13 +130,27 @@ export default function Employee() {
       wage: Number(values.wage),
       specialization: values.specialization,
       year: String(new Date().getFullYear()),
-      password: "Ams@12345",
-      isTeacher,
+      type: accountType,
     });
 
     message.success("Funcionário adicionado com sucesso!");
     refetch();
     onCloseAdd();
+
+    Modal.success({
+      title: "Funcionário criado",
+      content: (
+        <div>
+          <p>
+            Partilhe esta password temporária com o novo funcionário — vai ser
+            forçado a defini-la no primeiro acesso.
+          </p>
+          <Typography.Text code copyable style={{ fontSize: 15 }}>
+            {result?.temporaryPassword}
+          </Typography.Text>
+        </div>
+      ),
+    });
   };
 
   // ── Handlers — Editar ─────────────────────────────────────
@@ -231,11 +249,16 @@ export default function Employee() {
     deptName,
     onDeptChange,
     showTeacherFields,
+    onAccountTypeChange,
   }: {
     form: any;
     deptName: string | null;
     onDeptChange: (id: string) => void;
     showTeacherFields: boolean;
+    /** Só presente no formulário de criação — o tipo de conta não é editável depois. */
+    onAccountTypeChange?: (
+      value: "EMPLOYEE" | "TEACHER" | "SECRETARY" | "FINANCE",
+    ) => void;
   }) => (
     <Form form={form} layout="vertical">
       <Input.Id name="id" />
@@ -335,6 +358,23 @@ export default function Employee() {
 
         <Panel header="Departamento & Cargo" key="2">
           <Row gutter={[16, 16]}>
+            {onAccountTypeChange && (
+              <Col xs={24} sm={12}>
+                <Input.Select
+                  label="Tipo de Conta"
+                  name="accountType"
+                  onChange={onAccountTypeChange}
+                  options={[
+                    { label: "Funcionário", value: "EMPLOYEE" },
+                    { label: "Professor", value: "TEACHER" },
+                    { label: "Secretária", value: "SECRETARY" },
+                    { label: "Financeiro", value: "FINANCE" },
+                  ]}
+                  placeholder="Selecione o tipo de conta"
+                  required
+                />
+              </Col>
+            )}
             <Col xs={24} sm={12}>
               <Input.Select
                 label="Departamento"
@@ -458,7 +498,8 @@ export default function Employee() {
           form={addForm}
           deptName={selectedDeptName}
           onDeptChange={handleDeptChangeAdd}
-          showTeacherFields={isTeacher}
+          showTeacherFields={accountType === "TEACHER"}
+          onAccountTypeChange={setAccountType}
         />
       </Drawer>
 

@@ -6,10 +6,13 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import type { LineConfig, PieConfig } from "@ant-design/plots";
+import { Line, Pie } from "@ant-design/plots";
 import {
   Avatar,
   Card,
   Col,
+  Empty,
   Row,
   Skeleton,
   Statistic,
@@ -17,6 +20,7 @@ import {
   Typography,
 } from "antd";
 import { useNavigate } from "react-router-dom";
+import NewsFeed from "@/components/NewsFeed";
 
 export default function GuardianDashboard() {
   const navigate = useNavigate();
@@ -27,7 +31,38 @@ export default function GuardianDashboard() {
     summary = [],
     totalStudents = 0,
     totalOverdue = 0,
+    gradesTrend = [],
+    paymentMethodBreakdown = [],
   } = data ?? {};
+
+  const gradesTrendData = gradesTrend.flatMap((s: any) =>
+    s.terms.map((t: any) => ({
+      studentName: s.studentName,
+      termName: t.termName,
+      average: t.average,
+    })),
+  );
+  const hasGradesTrend = gradesTrendData.length > 0;
+  const hasPaymentBreakdown = paymentMethodBreakdown.length > 0;
+
+  const gradesTrendConfig: LineConfig = {
+    data: gradesTrendData,
+    xField: "termName",
+    yField: "average",
+    colorField: "studentName",
+    height: 280,
+    point: { shape: "circle" },
+    axis: { y: { title: "Média (0–20)" } },
+  };
+
+  const paymentMethodConfig: PieConfig = {
+    data: paymentMethodBreakdown,
+    angleField: "total",
+    colorField: "method",
+    innerRadius: 0.6,
+    height: 280,
+    legend: { color: { position: "right" } },
+  };
 
   return (
     <div style={{ padding: "24px" }}>
@@ -152,6 +187,45 @@ export default function GuardianDashboard() {
               </Col>
             ))}
       </Row>
+
+      {/* Gráficos */}
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Tendência de Médias por Educando" size="small">
+            {hasGradesTrend ? (
+              <Line {...gradesTrendConfig} />
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Ainda sem trimestres com notas lançadas"
+              />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="Repartição por Método de Pagamento" size="small">
+            {hasPaymentBreakdown ? (
+              <Pie {...paymentMethodConfig} />
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Ainda sem pagamentos confirmados"
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Notícias */}
+      <Typography.Text
+        type="secondary"
+        style={{ fontSize: 12, display: "block", margin: "24px 0 12px" }}
+      >
+        Notícias
+      </Typography.Text>
+      <Card size="small">
+        <NewsFeed limit={5} />
+      </Card>
     </div>
   );
 }

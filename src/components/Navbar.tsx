@@ -1,55 +1,53 @@
-import { Avatar, Button, Flex, Space } from "antd";
+import { Avatar, Button, Flex, Input, Space } from "antd";
 import { useState } from "react";
-import {
-  BiChevronLeft,
-  BiChevronRight,
-  BiMessage,
-  BiNotification,
-  BiSearch,
-} from "react-icons/bi";
+import { BiMessage, BiSearch } from "react-icons/bi";
+import { useNavigate } from "react-router-dom";
+import { messagesPathForUser } from "../app/guards";
 import { useAuthStore } from "../store/authStore";
+import { resolveAssetUrl } from "../utils/constants";
 import DropdownUser from "./DropdownUser";
-import Search from "./ModalSearch";
+import ModalSearch from "./ModalSearch";
+import NotificationBell from "./NotificationBell";
 
-interface NavProps {
-  collapse?: boolean;
-  setIsCollapse?: (r: boolean) => void;
-}
+// interface NavProps {
+//   collapse?: boolean;
+//   setIsCollapse?: (r: boolean) => void;
+// }
 
-export default function NavBar({ setIsCollapse, collapse }: NavProps) {
+export default function NavBar() {
   const { user } = useAuthStore();
-  const [open, setOpen] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [notifOpen, setNotifOpen] = useState<boolean>(false);
+  const messagesPath = messagesPathForUser(user?.type);
 
   const openSearch = () => {
-    setOpen(true);
+    setSearchOpen(true);
   };
   return (
     <Flex align="center" justify="space-between" style={{ width: "100%" }}>
-      <Space>
-        <Button
-          icon={
-            collapse ? (
-              <BiChevronRight size={18} />
-            ) : (
-              <BiChevronLeft size={18} />
-            )
-          }
-          onClick={() => setIsCollapse?.(!collapse)}
+      <Space style={{ width: "100%" }}>
+        <Input
+          prefix={<BiSearch />}
+          placeholder="Search..."
+          style={{ width: "120%" }}
+          onClick={openSearch}
         />
       </Space>
       <Space>
-        <Button icon={<BiSearch />} onClick={openSearch} />
-        <Button icon={<BiMessage />} />
-        <Button icon={<BiNotification />} />
-        <DropdownUser>
+        {messagesPath && (
+          <Button icon={<BiMessage />} onClick={() => navigate(messagesPath)} />
+        )}
+        <NotificationBell open={notifOpen} onOpenChange={setNotifOpen} />
+        <DropdownUser onOpenNotifications={() => setNotifOpen(true)}>
           <Avatar
             size={40}
             shape="square"
-            src={`http://localhost:3333/public/${user?.avatar}`}
+            src={resolveAssetUrl(user?.avatar)}
           />
         </DropdownUser>
       </Space>
-      <Search open={open} setOpen={setOpen} />
+      <ModalSearch open={searchOpen} setOpen={setSearchOpen} />
     </Flex>
   );
 }

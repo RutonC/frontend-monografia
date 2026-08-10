@@ -20,8 +20,10 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.6.3",
     "sass": "^1.94.2",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

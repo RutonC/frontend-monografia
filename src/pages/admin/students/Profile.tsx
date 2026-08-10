@@ -2,8 +2,10 @@
 import {
   CalendarOutlined,
   HomeOutlined,
+  LockOutlined,
   MailOutlined,
   PhoneOutlined,
+  UnlockOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -12,8 +14,12 @@ import {
   Button,
   Card,
   Col,
+  DatePicker,
   Descriptions,
   Empty,
+  Form,
+  Input as AntInput,
+  Modal,
   Progress,
   Row,
   Skeleton,
@@ -23,10 +29,12 @@ import {
   Tag,
   Timeline,
   Typography,
+  message,
 } from "antd";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
-import { useFetch } from "../../../utils/fetch";
+import { useFetch, useMutationPatch } from "../../../utils/fetch";
 import { intlDate } from "../../../utils/intl";
 
 const { Text, Title } = Typography;
@@ -343,10 +351,79 @@ function EnrollmentTab({ studentId }: { studentId: string }) {
   );
 }
 
+// ── Modal: Desbloquear aluno (inadimplência) ─────────────────────
+function UnblockStudentModal({
+  studentId,
+  open,
+  onClose,
+}: {
+  studentId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [form] = Form.useForm();
+  const { mutateAsyncPatch, isPending } = useMutationPatch(
+    ["student", studentId],
+    "students",
+  );
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    try {
+      await mutateAsyncPatch({
+        id: studentId,
+        urlParams: "financial-override",
+        body: {
+          untilDate: values.untilDate.toISOString(),
+          reason: values.reason,
+        },
+      });
+      message.success("Aluno desbloqueado temporariamente.");
+      form.resetFields();
+      onClose();
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ??
+          "Não foi possível desbloquear o aluno.",
+      );
+    }
+  };
+
+  return (
+    <Modal
+      title="Desbloquear aluno temporariamente"
+      open={open}
+      onCancel={onClose}
+      okText="Desbloquear"
+      cancelText="Cancelar"
+      confirmLoading={isPending}
+      onOk={handleSubmit}
+    >
+      <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
+        A dívida não é apagada — só a consulta de notas volta a ficar
+        disponível até à data escolhida.
+      </Typography.Paragraph>
+      <Form form={form} layout="vertical">
+        <Form.Item
+          label="Desbloqueado até"
+          name="untilDate"
+          rules={[{ required: true, message: "Campo obrigatório" }]}
+        >
+          <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
+        </Form.Item>
+        <Form.Item label="Motivo (opcional)" name="reason">
+          <AntInput.TextArea rows={2} placeholder="Ex.: negociação em curso" />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
 // ── Página principal ─────────────────────────────────────────────
 export default function StudentProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [unblockOpen, setUnblockOpen] = useState(false);
 
   const { data, isPending } = useFetch(
     ["student", id ?? ""],
@@ -356,6 +433,11 @@ export default function StudentProfile() {
 
   const student = data?.student;
   const user = student?.user ?? student;
+
+  const hasActiveOverride =
+    !!student?.financialOverrideUntil &&
+    new Date(student.financialOverrideUntil) > new Date();
+  const isBlocked = !!student?.financialState && !hasActiveOverride;
 
   const fullName = user
     ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
@@ -425,6 +507,17 @@ export default function StudentProfile() {
                         ? "Suspenso"
                         : "Inactivo"}
                   </Tag>
+                  {isBlocked && (
+                    <Tag icon={<LockOutlined />} color="error">
+                      Bloqueado por inadimplência
+                    </Tag>
+                  )}
+                  {hasActiveOverride && (
+                    <Tag icon={<UnlockOutlined />} color="processing">
+                      Desbloqueado até{" "}
+                      {intlDate(student.financialOverrideUntil)}
+                    </Tag>
+                  )}
                 </div>
                 <Button
                   size="small"
@@ -433,6 +526,16 @@ export default function StudentProfile() {
                 >
                   Editar dados
                 </Button>
+                {isBlocked && (
+                  <Button
+                    size="small"
+                    style={{ marginTop: 8, width: "100%" }}
+                    icon={<UnlockOutlined />}
+                    onClick={() => setUnblockOpen(true)}
+                  >
+                    Desbloquear temporariamente
+                  </Button>
+                )}
               </div>
             )}
           </Card>
@@ -521,6 +624,14 @@ export default function StudentProfile() {
           )}
         </Col>
       </Row>
+
+      {id && (
+        <UnblockStudentModal
+          studentId={id}
+          open={unblockOpen}
+          onClose={() => setUnblockOpen(false)}
+        />
+      )}
     </>
   );
 }

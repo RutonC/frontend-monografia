@@ -66,7 +66,7 @@ export default function TeacherClass() {
     );
   }
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1280 }}>
+    <div>
       <div style={{ marginBottom: 28 }}>
         <Title level={3} style={{ margin: 0 }}>
           Minhas Turmas
@@ -97,7 +97,7 @@ export default function TeacherClass() {
                 .filter(Boolean) ?? [];
 
             return (
-              <Col xs={24} sm={12} lg={8} key={section.id}>
+              <Col xs={24} sm={12} lg={6} key={section.id}>
                 <Card
                   hoverable
                   style={{ borderRadius: 14, overflow: "hidden" }}

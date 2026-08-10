@@ -1,69 +1,148 @@
 $header-height-menu: 4.375rem;
 $white: #fff;
-$aside-width-folded: 2.75rem;
 $aside-width: 15rem;
 $header-height: 1.375rem;
 
-$aside-width-folded: 3.75rem;
+$aside-width-folded: 3.85rem;
+
 .mainLayout {
-  .aside {
-    background-color: var(--lg-primary);
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
 
-    z-index: 507;
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100%;
-    flex: 0 0 $aside-width !important;
-    max-width: $aside-width !important;
-    min-width: $aside-width !important;
-    width: $aside-width !important;
-    transition:
-      border-radius 0.25s ease,
-      box-shadow 0.25s ease,
-      padding 0.25s ease;
+  .asideWrapper {
+    height: 100vh;
+    padding: 10px;
+    flex-shrink: 0;
+    // background-color: var(--lg-primary);
 
-    .menu {
+    .aside {
+      border-radius: 0 4px 4px 4px;
       background-color: var(--lg-primary);
-      scrollbar-color: var(--lg-mc-300);
-      border: none;
-      /* Chrome, Edge, Safari */
+
+      z-index: 507;
+
+      position: sticky;
+      left: 10px;
+      top: 10px;
+
+      height: calc(100vh - 80px);
+
+      overflow: auto;
+
+      flex: 0 0 $aside-width !important;
+      max-width: $aside-width !important;
+      min-width: $aside-width !important;
+      width: $aside-width !important;
+
+      scrollbar-width: thin;
+      scrollbar-color: var(--lg-primary-hover) var(--lg-primary);
+      scrollbar-gutter: stable;
       &::-webkit-scrollbar {
         width: 1px;
       }
-      height: 100% !important;
-
-      &::-webkit-scrollbar-thumb {
-        background-color: var(--lg-mc-300);
-        border-radius: 8px;
-      }
 
       &::-webkit-scrollbar-track {
-        background-color: transparent;
+        background: var(--lg-primary);
       }
-    }
 
-    &.collapsed {
-      background-color: var(--lg-primary);
-      flex: 0 0 $aside-width-folded !important;
-      max-width: $aside-width-folded !important;
-      min-width: $aside-width-folded !important;
-      width: $aside-width-folded !important;
+      &::-webkit-scrollbar-thumb {
+        background: var(--lg-primary-hover);
+        border-radius: 10px;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background: var(--lg-primary-hover);
+      }
       transition:
         border-radius 0.25s ease,
         box-shadow 0.25s ease,
         padding 0.25s ease;
 
       .menu {
+        background-color: var(--lg-primary);
+        border: none;
+
+        // IMPORTANTE:
+        // não criar segundo scroll
+        // overflow: visible;
+
+        height: auto !important;
+      }
+
+      &.collapsed {
+        background-color: var(--lg-primary);
+
+        flex: 0 0 $aside-width-folded !important;
         max-width: $aside-width-folded !important;
         min-width: $aside-width-folded !important;
         width: $aside-width-folded !important;
+
+        .menu {
+          max-width: $aside-width-folded !important;
+          min-width: $aside-width-folded !important;
+          width: $aside-width-folded !important;
+        }
+      }
+
+      :global(.ant-menu-submenu-title):hover {
+        background-color: var(--lg-bg);
+        color: var(--lg-primary);
+      }
+      :global(.ant-menu-submenu-selected) {
+        background-color: var(--lg-primary-hover) !important;
+        color: var(--lg-primary);
       }
     }
   }
 
   .contentLayout {
-    padding: 0 1.875rem 1.875rem;
-    margin-top: $header-height;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+
+    // IMPORTANTE
+    // Como o Sider é fixed, precisamos reservar o espaço dele.
+    // margin-left: $aside-width-expanded;
+    transition: margin-left 0.25s ease;
+  }
+
+  .header {
+    flex-shrink: 0;
+    margin-right: 10px;
+
+    position: sticky;
+    top: 10px;
+    border-radius: 4px;
+
+    z-index: 10;
+    padding: 0 1.875rem 0 1.875rem;
+  }
+
+  .content {
+    min-height: 0;
+    margin-top: 10px;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    flex: 1;
+
+    padding: 1.875rem 1.875rem 1.875rem;
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--lg-primary);
+      border-radius: 8px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: var(--lg-primary-hover);
+    }
   }
 }

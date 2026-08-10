@@ -1,23 +1,79 @@
-@font-face{
+@font-face {
   font-family: "roboto";
-  src: url('./assets/Roboto-Regular.ttf');
+  src: url("./assets/Roboto-Regular.ttf");
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'roboto-light';
-  src: url('./assets/Roboto-Light.ttf');
+  font-family: "roboto-light";
+  src: url("./assets/Roboto-Light.ttf");
   font-weight: normal;
   font-style: normal;
 }
 
-*,html, body {
-  font-family: 'roboto', sans-serif;
-  padding:0;
+*,
+html,
+body {
+  font-family: "roboto", sans-serif;
+  padding: 0;
   margin: 0;
 }
 
-.ant-dropdown .ant-dropdown-menu{
+.ant-dropdown .ant-dropdown-menu {
   box-shadow: none !important;
+}
+
+@media print {
+  /* Esconde elementos desnecessários na impressão */
+  .no-print,
+  .ant-layout-sider,
+  .ant-layout-header,
+  nav,
+  header,
+  aside,
+  .ant-breadcrumb,
+  .ant-tabs-nav {
+    display: none !important;
+  }
+
+  /* Garante que o conteúdo ocupa a página inteira */
+  .ant-layout-content,
+  .ant-layout {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Cabeçalho da ficha em negrito */
+  .print-header {
+    page-break-inside: avoid;
+  }
+
+  /* Tabelas não cortadas entre páginas */
+  .ant-table-row {
+    page-break-inside: avoid;
+  }
+
+  /* Tamanho de fonte adequado para impressão */
+  body {
+    font-size: 11px !important;
+  }
+
+  /* Forçar cores a aparecer na impressão */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* A4 landscape para fichas largas */
+  @page {
+    size: A4 landscape;
+    margin: 10mm 8mm;
+  }
+
+  /* Cards com bordas visíveis */
+  .ant-card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
 }

@@ -161,7 +161,7 @@ export default function TeacherSchedule() {
   }
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1280 }}>
+    <div>
       {/* Header */}
       <div
         style={{

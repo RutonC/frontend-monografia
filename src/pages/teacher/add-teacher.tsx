@@ -1,5 +1,16 @@
 import { HomeOutlined } from "@ant-design/icons";
-import { Button, Card, Col, DatePicker, Flex, Form, Row, message } from "antd";
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Flex,
+  Form,
+  Modal,
+  Row,
+  Typography,
+  message,
+} from "antd";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,7 +63,7 @@ export default function AddTeacher() {
   };
 
   const handleAddTeacher = async (values: any) => {
-    await mutateAsync({
+    const result = await mutateAsync({
       firstName: values.firstName,
       lastName: values.lastName,
       nuitNumber: values.nuitNumber,
@@ -71,14 +82,28 @@ export default function AddTeacher() {
         : undefined,
       email: values.email,
       year: String(new Date().getFullYear()),
-      password: "Ams@12345",
       isTeacher: true,
     });
 
     message.success("Professor adicionado com sucesso!");
     form.resetFields();
     setSelectedDepartmentName(null);
-    navigate(-1);
+
+    Modal.success({
+      title: "Professor criado",
+      content: (
+        <div>
+          <p>
+            Partilhe esta password temporária com o novo professor — vai ser
+            forçado a defini-la no primeiro acesso.
+          </p>
+          <Typography.Text code copyable style={{ fontSize: 15 }}>
+            {result?.temporaryPassword}
+          </Typography.Text>
+        </div>
+      ),
+      onOk: () => navigate(-1),
+    });
   };
 
   return (

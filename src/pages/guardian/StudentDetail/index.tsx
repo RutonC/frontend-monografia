@@ -6,29 +6,43 @@ import {
   useStudentInvoices,
   useStudentSchedule,
 } from "@/hooks/useGuardian";
+import { useFetch, useMutationPost } from "@/utils/fetch";
 import { intlDate } from "@/utils/intl";
 import {
   AlertOutlined,
   CalendarOutlined,
+  CopyOutlined,
   HomeOutlined,
+  LockOutlined,
+  UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
   Avatar,
   Badge,
+  Button,
   Card,
   Col,
   Empty,
+  Form,
+  Input as AntInput,
+  InputNumber,
+  message,
+  Modal,
   Progress,
   Row,
+  Select,
   Skeleton,
   Space,
   Tabs,
   Tag,
   Timeline,
   Typography,
+  Upload,
 } from "antd";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axiosInstance from "@/utils/axiosInstance";
 
 const GRADE_TYPE_LABEL: Record<string, string> = {
   AC1: "Avaliação 1",
@@ -65,12 +79,112 @@ const INVOICE_STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Cancelado",
 };
 
+// ── Boletim: média por disciplina + final do trimestre ─────────────
+function TermReportCard({
+  studentId,
+  termId,
+  termName,
+}: {
+  studentId: string;
+  termId: string;
+  termName: string;
+}) {
+  const { data, isPending } = useFetch<{ reportCard?: any }>(
+    ["report-card", studentId, termId],
+    `students/${studentId}/report-card?termId=${termId}`,
+  );
+
+  if (isPending) return <Skeleton active paragraph={{ rows: 2 }} />;
+  const card = data?.reportCard;
+  if (!card) return null;
+
+  return (
+    <Card
+      size="small"
+      style={{ marginBottom: 12 }}
+      title={`Boletim — ${termName}`}
+      extra={
+        card.termAverage !== null && (
+          <Tag color={card.passed ? "success" : "error"}>
+            Média: {card.termAverage.toFixed(1)} —{" "}
+            {card.passed ? "Aprovado" : "Reprovado"}
+          </Tag>
+        )
+      }
+    >
+      <Row gutter={[8, 8]}>
+        {card.subjects.map((s: any) => (
+          <Col key={s.subjectId} xs={12} sm={8} md={6}>
+            <div style={{ textAlign: "center" }}>
+              <Typography.Text
+                style={{
+                  fontSize: 11,
+                  display: "block",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                {s.subjectName}
+              </Typography.Text>
+              <Typography.Text
+                strong
+                style={{
+                  fontSize: 16,
+                  color:
+                    s.average === null
+                      ? "var(--color-text-secondary)"
+                      : s.passed
+                        ? "var(--color-text-success)"
+                        : "var(--color-text-danger)",
+                }}
+              >
+                {s.average === null ? "—" : s.average.toFixed(1)}
+              </Typography.Text>
+            </div>
+          </Col>
+        ))}
+      </Row>
+    </Card>
+  );
+}
+
 // ── Tab: Notas ────────────────────────────────────────────────────
 function GradesTab({ studentId }: { studentId: string }) {
   const { data, isPending } = useStudentGrades(studentId);
-  const grouped = data?.grouped ?? {};
 
   if (isPending) return <Skeleton active paragraph={{ rows: 6 }} />;
+
+  if ((data as any)?.blocked) {
+    const blocked = data as any;
+    return (
+      <Card
+        style={{
+          background: "var(--color-background-danger)",
+          border: "0.5px solid var(--color-border-danger)",
+          textAlign: "center",
+        }}
+      >
+        <LockOutlined
+          style={{ fontSize: 28, color: "var(--color-text-danger)" }}
+        />
+        <Typography.Title
+          level={5}
+          style={{ color: "var(--color-text-danger)", marginTop: 12 }}
+        >
+          Pautas bloqueadas por mensalidades em atraso
+        </Typography.Title>
+        <Typography.Text style={{ display: "block", marginBottom: 4 }}>
+          {blocked.reason}
+        </Typography.Text>
+        {typeof blocked.overdueTotal === "number" && (
+          <Typography.Text strong>
+            Total em atraso: MZN {blocked.overdueTotal.toFixed(2)}
+          </Typography.Text>
+        )}
+      </Card>
+    );
+  }
+
+  const grouped = data?.grouped ?? {};
   if (!Object.keys(grouped).length)
     return (
       <Empty
@@ -79,8 +193,24 @@ function GradesTab({ studentId }: { studentId: string }) {
       />
     );
 
+  // Mapa termId → nome, a partir das notas já carregadas — evita um
+  // pedido extra só para descobrir os trimestres com notas.
+  const terms = new Map<string, string>();
+  (data?.grades ?? []).forEach((g: any) => {
+    if (g.termId && g.term?.name) terms.set(g.termId, g.term.name);
+  });
+
   return (
     <div>
+      {Array.from(terms.entries()).map(([termId, termName]) => (
+        <TermReportCard
+          key={termId}
+          studentId={studentId}
+          termId={termId}
+          termName={termName}
+        />
+      ))}
+
       {Object.entries(grouped).map(([term, subjects]) => (
         <Card key={term} title={term} size="small" style={{ marginBottom: 16 }}>
           {Object.entries(subjects as Record<string, any[]>).map(
@@ -310,11 +440,132 @@ function ScheduleTab({ studentId }: { studentId: string }) {
   );
 }
 
+// ── Modal: Reportar pagamento ──────────────────────────────────────
+function ReportPaymentModal({
+  studentId,
+  invoiceId,
+  open,
+  onClose,
+}: {
+  studentId: string;
+  invoiceId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [form] = Form.useForm();
+  const [proofUrl, setProofUrl] = useState<string | undefined>();
+  const [uploading, setUploading] = useState(false);
+
+  const { mutateAsync, isPending } = useMutationPost(
+    ["guardian", "invoices", studentId],
+    `guardian/students/${studentId}/invoices/${invoiceId}/report-payment`,
+  );
+
+  const handleUpload = async ({ file }: { file: File }) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await axiosInstance.post("/assets/upload", formData);
+      setProofUrl(res.data.url);
+      message.success("Comprovativo anexado.");
+    } catch {
+      message.error("Não foi possível enviar o comprovativo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    try {
+      await mutateAsync({ ...values, proofUrl });
+      message.success(
+        "Pagamento reportado. Aguarda confirmação da Secretaria/Financeiro.",
+      );
+      form.resetFields();
+      setProofUrl(undefined);
+      onClose();
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ?? "Não foi possível reportar o pagamento.",
+      );
+    }
+  };
+
+  return (
+    <Modal
+      title="Reportar pagamento"
+      open={open}
+      onCancel={onClose}
+      okText="Reportar"
+      cancelText="Cancelar"
+      confirmLoading={isPending}
+      onOk={handleSubmit}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item
+          label="Método"
+          name="method"
+          rules={[{ required: true, message: "Campo obrigatório" }]}
+        >
+          <Select
+            placeholder="Como pagou?"
+            options={[
+              { label: "Referência (entidade/referência)", value: "REFERENCE" },
+              { label: "Depósito/Transferência bancária", value: "TRANSFER" },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item
+          label="Valor pago (MZN)"
+          name="amountPaid"
+          rules={[{ required: true, message: "Campo obrigatório" }]}
+        >
+          <InputNumber min={0} style={{ width: "100%" }} />
+        </Form.Item>
+        <Form.Item label="Referência/comprovativo (nº do talão, etc.)" name="reference">
+          <AntInput placeholder="Opcional" />
+        </Form.Item>
+        <Form.Item label="Notas" name="notes">
+          <AntInput.TextArea rows={2} placeholder="Opcional" />
+        </Form.Item>
+        <Form.Item label="Anexar comprovativo">
+          <Upload
+            customRequest={({ file }) => handleUpload({ file: file as File })}
+            showUploadList={false}
+            accept="image/*,.pdf"
+          >
+            <Button icon={<UploadOutlined />} loading={uploading}>
+              {proofUrl ? "Comprovativo anexado ✓" : "Escolher ficheiro"}
+            </Button>
+          </Upload>
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
 // ── Tab: Propinas ─────────────────────────────────────────────────
 function InvoicesTab({ studentId }: { studentId: string }) {
   const { data, isPending } = useStudentInvoices(studentId);
+  const { data: settingsData } = useFetch<{ settings: { paymentEntityCode?: string } }>(
+    ["settings"],
+    "settings",
+  );
   const invoices = data?.invoices ?? [];
   const totalPending = data?.totalPending ?? 0;
+  const entityCode = settingsData?.settings?.paymentEntityCode;
+  const [reportingInvoiceId, setReportingInvoiceId] = useState<string | null>(
+    null,
+  );
+
+  const copyReference = (reference: string) => {
+    navigator.clipboard
+      .writeText(reference)
+      .then(() => message.success("Referência copiada."))
+      .catch(() => message.error("Não foi possível copiar."));
+  };
 
   if (isPending) return <Skeleton active paragraph={{ rows: 6 }} />;
   if (!invoices.length)
@@ -346,43 +597,93 @@ function InvoicesTab({ studentId }: { studentId: string }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {invoices.map((inv: any) => (
-          <Card key={inv.id} size="small">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-              }}
-            >
-              <div>
-                <Typography.Text strong style={{ fontSize: 13 }}>
-                  {inv.description ?? inv.term?.name ?? "Propina"}
-                </Typography.Text>
-                <Typography.Text
-                  type="secondary"
-                  style={{ fontSize: 12, display: "block" }}
-                >
-                  Vencimento: {intlDate(inv.dueDate)}
-                </Typography.Text>
-                {inv.balance > 0 && inv.status !== "PAID" && (
-                  <Typography.Text type="danger" style={{ fontSize: 12 }}>
-                    Em dívida: MZN {inv.balance.toFixed(2)}
+        {invoices.map((inv: any) => {
+          const payable = inv.status === "UNPAID" || inv.status === "OVERDUE";
+          return (
+            <Card key={inv.id} size="small">
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
+                <div>
+                  <Typography.Text strong style={{ fontSize: 13 }}>
+                    {inv.description ?? inv.term?.name ?? "Propina"}
                   </Typography.Text>
-                )}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <Tag color={INVOICE_STATUS_COLOR[inv.status]}>
-                  {INVOICE_STATUS_LABEL[inv.status]}
-                </Tag>
-                <div style={{ fontSize: 16, fontWeight: 500, marginTop: 4 }}>
-                  MZN {Number(inv.amount).toFixed(2)}
+                  <Typography.Text
+                    type="secondary"
+                    style={{ fontSize: 12, display: "block" }}
+                  >
+                    Vencimento: {intlDate(inv.dueDate)}
+                  </Typography.Text>
+                  {inv.balance > 0 && inv.status !== "PAID" && (
+                    <Typography.Text type="danger" style={{ fontSize: 12 }}>
+                      Em dívida: MZN {inv.balance.toFixed(2)}
+                    </Typography.Text>
+                  )}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <Tag color={INVOICE_STATUS_COLOR[inv.status]}>
+                    {INVOICE_STATUS_LABEL[inv.status]}
+                  </Tag>
+                  <div style={{ fontSize: 16, fontWeight: 500, marginTop: 4 }}>
+                    MZN {Number(inv.amount).toFixed(2)}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
-        ))}
+
+              {payable && inv.paymentReference && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 10,
+                    borderRadius: 6,
+                    background: "var(--color-background-secondary)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ fontSize: 12 }}>
+                    <Typography.Text type="secondary">Entidade: </Typography.Text>
+                    <Typography.Text strong>{entityCode ?? "—"}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ marginLeft: 12 }}>
+                      Referência:{" "}
+                    </Typography.Text>
+                    <Typography.Text strong>{inv.paymentReference}</Typography.Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CopyOutlined />}
+                      onClick={() => copyReference(inv.paymentReference)}
+                    />
+                  </div>
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={() => setReportingInvoiceId(inv.id)}
+                  >
+                    Reportei o pagamento
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
+
+      {reportingInvoiceId && (
+        <ReportPaymentModal
+          studentId={studentId}
+          invoiceId={reportingInvoiceId}
+          open={!!reportingInvoiceId}
+          onClose={() => setReportingInvoiceId(null)}
+        />
+      )}
     </div>
   );
 }

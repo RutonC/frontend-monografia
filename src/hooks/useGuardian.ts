@@ -44,6 +44,12 @@ export type GuardianDashboard = {
   }>;
   totalStudents: number;
   totalOverdue: number;
+  gradesTrend: Array<{
+    studentId: string;
+    studentName: string;
+    terms: Array<{ termName: string; average: number | null }>;
+  }>;
+  paymentMethodBreakdown: Array<{ method: string; total: number }>;
 };
 
 export const useGuardianDashboard = () =>
