@@ -69,9 +69,9 @@ import GuardianDashboard from "../pages/guardian/Dashboard";
 import GuardianLayout from "../pages/guardian/Layout";
 import GuardianStudentDetail from "../pages/guardian/StudentDetail";
 
-import Reports from "@/pages/admin/Reports";
-import Noticias from "@/pages/admin/News";
 import AppLayout from "../components/AppLayout";
+import Noticias from "../pages/admin/News";
+import Reports from "../pages/admin/Reports";
 import ChangePasswordForced from "../pages/auth/ChangePassword";
 import Login from "../pages/auth/login";
 import FinanceDashboard from "../pages/finance/Dashboard";
@@ -181,12 +181,7 @@ function useAdminMenuItems() {
       <Pagamentos />,
     ),
     getItem("Eventos", "/eventos", <MdEventNote size={20} />, <Eventos />),
-    getItem(
-      "Notícias",
-      "/noticias",
-      <NotificationOutlined />,
-      <Noticias />,
-    ),
+    getItem("Notícias", "/noticias", <NotificationOutlined />, <Noticias />),
     getItem(
       "Mensagens",
       "/mensagens",
@@ -499,7 +494,7 @@ const adminExtraRoutes = [
   {
     key: "personal-settings",
     path: "/definicoes-pessoais",
-    element: <DefinicoesPessoais />
+    element: <DefinicoesPessoais />,
   },
 ];
 
