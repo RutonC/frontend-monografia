@@ -152,6 +152,24 @@ export interface IEnrollment {
   updatedAt?: string;
 }
 
+export interface IPermission {
+  id: string;
+  key: string;
+  label?: string;
+  action: string;
+  subject: string;
+  createdAt?: string;
+}
+
+export interface IRole {
+  id: string;
+  name: string;
+  createdAt?: string;
+  permissionCount?: number;
+  userCount?: number;
+  permissions?: IPermission[];
+}
+
 // Manter interfaces antigas para compatibilidade
 export interface IClassroom {
   key?: string;

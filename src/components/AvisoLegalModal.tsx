@@ -13,10 +13,12 @@ export default function AvisoLegalModal({
   return (
     <Modal
       title={null}
+      keyboard
       open={open}
       onCancel={onClose}
       footer={null}
       width={720}
+      styles={{ header: { paddingBlock: 24 }, body: { marginTop: 24 } }}
     >
       <div className={styles.content}>
         <ReactMarkdown>{avisoLegalContent}</ReactMarkdown>

@@ -1,10 +1,7 @@
 // pages/admin/notas/pauta.tsx
 // Pauta global por turma — notas consolidadas de todos os alunos
 // por disciplina e trimestre. Botão de exportar PDF.
-import {
-  HomeOutlined,
-  PrinterOutlined
-} from "@ant-design/icons";
+import { HomeOutlined, PrinterOutlined } from "@ant-design/icons";
 import {
   Button,
   Card,
@@ -384,7 +381,10 @@ export default function PautaGlobal() {
                       );
                       if (average === null) return "—";
                       return (
-                        <Tag color={passed ? "success" : "error"}>
+                        <Tag
+                          color={passed ? "success" : "error"}
+                          variant="outlined"
+                        >
                           {passed ? "Aprovado" : "Reprovado"}
                         </Tag>
                       );

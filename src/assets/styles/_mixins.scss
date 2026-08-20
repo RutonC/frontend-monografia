@@ -1,3 +1,5 @@
+@use "./_variables.scss" as *;
+
 @mixin content-base($padding-left: 1.5rem) {
   padding: 54px 1.4rem 54px $padding-left;
   margin-top: $header-height;
@@ -14,4 +16,34 @@
   -webkit-line-clamp: $lines;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+// ── Breakpoints ──────────────────────────────────────────────────
+// Usa os valores já definidos em _variables.scss ($mobile/$tablet/
+// $laptop/$desktop). "Mobile-first" nos nomes *-up, "desktop-first"
+// nos nomes *-down — usa o que fizer mais sentido no sítio.
+@mixin mobile-only {
+  @media (max-width: #{$tablet - 1px}) {
+    @content;
+  }
+}
+
+@mixin tablet-up {
+  @media (min-width: $tablet) {
+    @content;
+  }
+}
+
+// Telemóvel + tablet — abaixo do ecrã de portátil/desktop. É o limiar
+// usado para a barra lateral passar a menu deslizante (drawer).
+@mixin compact-down {
+  @media (max-width: #{$laptop - 1px}) {
+    @content;
+  }
+}
+
+@mixin laptop-up {
+  @media (min-width: $laptop) {
+    @content;
+  }
 }

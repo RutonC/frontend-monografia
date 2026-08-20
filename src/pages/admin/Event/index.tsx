@@ -149,7 +149,6 @@ export default function Eventos({ readOnly = false }: { readOnly?: boolean }) {
             : [
                 <Button
                   key="edit"
-                  size="small"
                   icon={<EditOutlined />}
                   onClick={() => onOpenEdit(event)}
                 />,
@@ -160,7 +159,7 @@ export default function Eventos({ readOnly = false }: { readOnly?: boolean }) {
                   cancelText="Não"
                   onConfirm={() => handleDelete(event.id)}
                 >
-                  <Button size="small" danger icon={<DeleteOutlined />} />
+                  <Button danger icon={<DeleteOutlined />} />
                 </Popconfirm>,
               ]
         }
@@ -202,7 +201,11 @@ export default function Eventos({ readOnly = false }: { readOnly?: boolean }) {
               <Text strong style={{ fontSize: 14 }}>
                 {event.title}
               </Text>
-              <Tag color={SCOPE_COLOR[event.scope]} style={{ fontSize: 11 }}>
+              <Tag
+                color={SCOPE_COLOR[event.scope]}
+                style={{ fontSize: 11 }}
+                variant="outlined"
+              >
                 {SCOPE_LABEL[event.scope] ?? event.scope}
               </Tag>
             </Space>

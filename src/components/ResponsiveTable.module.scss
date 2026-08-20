@@ -1,0 +1,65 @@
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  border-radius: 10px;
+
+  :global(.ant-card-body) {
+    padding: 12px 14px;
+  }
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.field {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-tertiary, #f0f0f0);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  &:first-child {
+    padding-top: 0;
+  }
+}
+
+.label {
+  font-size: 11px;
+  color: var(--color-text-secondary, #8c8c8c);
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.value {
+  font-size: 13px;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+// Campo sem título (ex.: coluna de acções sem cabeçalho) — sem separador
+// nem alinhamento em duas colunas, ocupa a linha toda.
+.valueOnly {
+  padding: 6px 0;
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}

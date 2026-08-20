@@ -249,7 +249,7 @@ export default function ActualizarInscricao() {
                   <Descriptions.Item label="Aluno">
                     <Flex align="center" gap={6}>
                       <Avatar
-                        size="small"
+                        shape="square"
                         src={enrollment.student?.user?.avatar}
                       >
                         {enrollment.student?.user?.firstName?.[0]}
@@ -261,7 +261,10 @@ export default function ActualizarInscricao() {
                     </Flex>
                   </Descriptions.Item>
                   <Descriptions.Item label="Estado">
-                    <Tag color={STATUS_MAP[enrollment.status]?.color}>
+                    <Tag
+                      color={STATUS_MAP[enrollment.status]?.color}
+                      variant="outlined"
+                    >
                       {STATUS_MAP[enrollment.status]?.label ??
                         enrollment.status}
                     </Tag>

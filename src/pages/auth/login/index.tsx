@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AvisoLegalModal from "../../../components/AvisoLegalModal";
 import { useAuthStore } from "../../../store/authStore";
+import styles from "./login.module.scss";
 
 function Login() {
   const [form] = Form.useForm();
@@ -33,28 +34,8 @@ function Login() {
   };
 
   return (
-    <Content
-      style={{
-        backgroundColor: "#F5F5F5",
-        height: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        flexDirection: "column",
-      }}
-    >
-      <Card
-        style={{
-          height: "80%",
-          width: "70%",
-          backgroundColor: "#fff",
-          borderRadius: 0,
-          paddingInline: "20%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
-      >
+    <Content className={styles.page}>
+      <Card className={styles.card}>
         <Typography.Title
           level={3}
           style={{ marginBottom: 32, textAlign: "center" }}
@@ -81,13 +62,13 @@ function Login() {
           onFinish={handleSubmit}
         >
           <Form.Item
-            label="Identificador"
+            label="Identificador ou e-mail"
             name="identifier"
             rules={[{ required: true, message: "Identificador obrigatório." }]}
           >
             <Input
               prefix={<UserOutlined style={{ color: "#bfbfbf" }} />}
-              placeholder="Identificador"
+              placeholder="Identificador ou e-mail"
               autoComplete="username"
             />
           </Form.Item>
@@ -115,7 +96,7 @@ function Login() {
         </Form>
       </Card>
 
-      <Flex justify="space-between" style={{ width: "70%", marginTop: 4 }}>
+      <Flex justify="space-between" className={styles.footer}>
         <span style={{ color: "#757575" }}>
           Copyright 2025. AMS. Todos os direitos reservados.
         </span>

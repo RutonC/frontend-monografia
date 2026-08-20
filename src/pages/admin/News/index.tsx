@@ -7,11 +7,11 @@ import {
   PushpinFilled,
 } from "@ant-design/icons";
 import {
+  Input as AntInput,
   Button,
   Card,
   Drawer,
   Form,
-  Input as AntInput,
   List,
   Popconfirm,
   Space,
@@ -138,7 +138,11 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
         title="Notícias publicadas"
         extra={
           !readOnly && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onOpenCreate}
+            >
               Nova Notícia
             </Button>
           )
@@ -156,7 +160,6 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
                   : [
                       <Button
                         key="edit"
-                        size="small"
                         icon={<EditOutlined />}
                         onClick={() => onOpenEdit(item)}
                       />,
@@ -167,7 +170,7 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
                         cancelText="Não"
                         onConfirm={() => handleDelete(item.id)}
                       >
-                        <Button size="small" danger icon={<DeleteOutlined />} />
+                        <Button danger icon={<DeleteOutlined />} />
                       </Popconfirm>,
                     ]
               }
@@ -176,12 +179,18 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
                 title={
                   <Space size={6}>
                     {item.pinned && (
-                      <PushpinFilled style={{ color: "#4f3fc5", fontSize: 12 }} />
+                      <PushpinFilled
+                        style={{ color: "#4f3fc5", fontSize: 12 }}
+                      />
                     )}
                     <Text strong style={{ fontSize: 14 }}>
                       {item.title}
                     </Text>
-                    <Tag color={SCOPE_COLOR[item.scope]} style={{ fontSize: 11 }}>
+                    <Tag
+                      color={SCOPE_COLOR[item.scope]}
+                      style={{ fontSize: 11 }}
+                      variant="outlined"
+                    >
                       {SCOPE_LABEL[item.scope] ?? item.scope}
                     </Tag>
                   </Space>
@@ -234,7 +243,9 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
           <Form.Item
             label="Conteúdo"
             name="body"
-            rules={[{ required: true, message: "Escreva o conteúdo da notícia" }]}
+            rules={[
+              { required: true, message: "Escreva o conteúdo da notícia" },
+            ]}
           >
             <AntInput.TextArea
               placeholder="Escreva aqui o conteúdo da notícia..."
@@ -248,7 +259,11 @@ export default function Noticias({ readOnly = false }: { readOnly?: boolean }) {
             options={SCOPE_OPTIONS}
             placeholder="Seleccione o público-alvo"
           />
-          <Form.Item label="Fixar no topo" name="pinned" valuePropName="checked">
+          <Form.Item
+            label="Fixar no topo"
+            name="pinned"
+            valuePropName="checked"
+          >
             <Switch />
           </Form.Item>
         </Form>

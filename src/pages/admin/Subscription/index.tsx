@@ -275,7 +275,7 @@ export default function NovaInscricao() {
                       title: "Nome",
                       render: (_, r: IStudent) => (
                         <Flex align="center" gap={8}>
-                          <Avatar size="small" src={r.user?.avatar}>
+                          <Avatar shape="square" src={r.user?.avatar}>
                             {r.user?.firstName?.[0]}
                           </Avatar>
                           <span>
@@ -299,6 +299,7 @@ export default function NovaInscricao() {
                           color={
                             r.user?.status === "ACTIVE" ? "success" : "default"
                           }
+                          variant="outlined"
                         >
                           {r.user?.status === "ACTIVE" ? "Activo" : "Inactivo"}
                         </Tag>

@@ -5,19 +5,11 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import {
-  Avatar,
-  Button,
-  Card,
-  Drawer,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
+import { Avatar, Button, Card, Drawer, Space, Tag, Typography } from "antd";
 import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import Filters from "../../../components/Filters";
+import ResponsiveTable from "../../../components/ResponsiveTable";
 import { useFetch } from "../../../utils/fetch";
 
 const { Text, Title } = Typography;
@@ -39,7 +31,7 @@ export default function Encarregados() {
       />
 
       <Card title={<Filters onFiltersChange={() => {}} />}>
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={isPending}
           dataSource={guardians}
@@ -50,7 +42,7 @@ export default function Encarregados() {
               title: "Encarregado",
               render: (_, r: any) => (
                 <Space>
-                  <Avatar src={r.user?.avatar} size="small">
+                  <Avatar src={r.user?.avatar} shape="square">
                     {r.user?.firstName?.[0]}
                   </Avatar>
                   <div>
@@ -92,7 +84,12 @@ export default function Encarregados() {
               render: (_, r: any) => (
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {r.students?.map((s: any) => (
-                    <Tag key={s.id} color="blue" style={{ fontSize: 11 }}>
+                    <Tag
+                      key={s.id}
+                      color="blue"
+                      style={{ fontSize: 11 }}
+                      variant="outlined"
+                    >
                       {s.user?.firstName} {s.user?.lastName}
                       {s.enrollment?.[0]?.level
                         ? ` — ${s.enrollment[0].level.name}`
@@ -112,6 +109,7 @@ export default function Encarregados() {
               render: (_, r: any) => (
                 <Tag
                   color={r.user?.status === "ACTIVE" ? "success" : "default"}
+                  variant="outlined"
                 >
                   {r.user?.status === "ACTIVE" ? "Activo" : r.user?.status}
                 </Tag>
@@ -122,11 +120,7 @@ export default function Encarregados() {
               fixed: "right",
               width: "6rem",
               render: (_, r: any) => (
-                <Button
-                  size="small"
-                  icon={<EyeOutlined />}
-                  onClick={() => setDetail(r)}
-                >
+                <Button icon={<EyeOutlined />} onClick={() => setDetail(r)}>
                   Ver
                 </Button>
               ),

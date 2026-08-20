@@ -4,26 +4,49 @@ import { Input } from "@/components/Input";
 import { useAuthStore } from "@/store/authStore";
 import axiosInstance from "@/utils/axiosInstance";
 import { resolveAssetUrl } from "@/utils/constants";
+import { useFetch } from "@/utils/fetch";
 import { HomeOutlined, UploadOutlined, UserOutlined } from "@ant-design/icons";
 import { useMutation } from "@tanstack/react-query";
 import {
   Avatar,
   Button,
   Card,
+  Checkbox,
   Col,
   Form,
   Row,
   Space,
+  Table,
   Typography,
   Upload,
   message,
 } from "antd";
-import { useEffect } from "react";
+import ImgCrop from "antd-img-crop";
+import { useEffect, useState } from "react";
+
+type NotificationPreferenceRow = {
+  type: string;
+  web: boolean;
+  email: boolean;
+};
+
+const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  GRADE_POSTED: "Nota lançada",
+  INVOICE_OVERDUE: "Factura vencida",
+  FINE_APPLIED: "Multa aplicada",
+  PAYMENT_CONFIRMED: "Pagamento confirmado",
+  NEW_MESSAGE: "Nova mensagem",
+  NEW_NEWS: "Nova notícia",
+  ENROLLMENT_STATUS_CHANGED: "Estado de matrícula alterado",
+  EVENT_CREATED: "Novo evento",
+  STUDENT_UNBLOCKED: "Aluno desbloqueado",
+  GENERAL: "Geral",
+};
 
 const { Text } = Typography;
 
 export default function DefinicoesPessoais() {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, getCurrentUser } = useAuthStore();
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
 
@@ -39,19 +62,24 @@ export default function DefinicoesPessoais() {
     });
   }, [user, profileForm]);
 
-  const { mutateAsync: uploadAvatar, isPending: uploadingAvatar } = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await axiosInstance.post("/assets/upload", formData);
-      return res.data.url as string;
+  const { mutateAsync: uploadAvatar, isPending: uploadingAvatar } = useMutation(
+    {
+      mutationFn: async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("category", "avatars");
+        const res = await axiosInstance.post("/assets/upload", formData);
+        return res.data.url as string;
+      },
     },
-  });
+  );
 
   const handleAvatarUpload = async ({ file }: { file: File }) => {
     try {
       const url = await uploadAvatar(file);
       profileForm.setFieldValue("avatar", url);
+      await axiosInstance.patch("/auth/me", { avatar: url });
+      await getCurrentUser();
       message.success("Foto enviada. Guarde para aplicar.");
     } catch {
       message.error("Não foi possível enviar a foto.");
@@ -60,7 +88,7 @@ export default function DefinicoesPessoais() {
 
   const { mutateAsync: saveProfile, isPending: savingProfile } = useMutation({
     mutationFn: async (body: any) => {
-      const res = await axiosInstance.put("/auth/me", body);
+      const res = await axiosInstance.patch("/auth/me", body);
       return res.data;
     },
     onSuccess: (data) => {
@@ -72,23 +100,74 @@ export default function DefinicoesPessoais() {
     },
   });
 
-  const { mutateAsync: changePassword, isPending: changingPassword } = useMutation({
-    mutationFn: async (body: { currentPassword: string; newPassword: string }) => {
-      const res = await axiosInstance.patch("/auth/change-password", body);
-      return res.data;
-    },
-    onSuccess: () => {
-      message.success("Password alterada com sucesso.");
-      passwordForm.resetFields();
-    },
-    onError: (error: any) => {
-      message.error(
-        error?.response?.data?.message ?? "Não foi possível alterar a password.",
-      );
-    },
-  });
+  const { mutateAsync: changePassword, isPending: changingPassword } =
+    useMutation({
+      mutationFn: async (body: {
+        currentPassword: string;
+        newPassword: string;
+      }) => {
+        const res = await axiosInstance.patch("/auth/change-password", body);
+        return res.data;
+      },
+      onSuccess: () => {
+        message.success("Password alterada com sucesso.");
+        passwordForm.resetFields();
+      },
+      onError: (error: any) => {
+        message.error(
+          error?.response?.data?.message ??
+            "Não foi possível alterar a password.",
+        );
+      },
+    });
 
   const avatarUrl = Form.useWatch("avatar", profileForm);
+
+  // ── Preferências de notificação (Fase C) ───────────────────────
+  const [preferences, setPreferences] = useState<NotificationPreferenceRow[]>(
+    [],
+  );
+  const { data: preferencesData, isPending: loadingPreferences } = useFetch<{
+    success: boolean;
+    preferences: NotificationPreferenceRow[];
+  }>(["notification-preferences"], "notifications/preferences");
+
+  useEffect(() => {
+    if (preferencesData?.preferences)
+      setPreferences(preferencesData.preferences);
+  }, [preferencesData]);
+
+  const { mutateAsync: savePreferences, isPending: savingPreferences } =
+    useMutation({
+      mutationFn: async (body: {
+        preferences: NotificationPreferenceRow[];
+      }) => {
+        const res = await axiosInstance.patch(
+          "/notifications/preferences",
+          body,
+        );
+        return res.data;
+      },
+    });
+
+  const toggleChannel = (
+    type: string,
+    channel: "web" | "email",
+    checked: boolean,
+  ) => {
+    setPreferences((prev) =>
+      prev.map((p) => (p.type === type ? { ...p, [channel]: checked } : p)),
+    );
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      await savePreferences({ preferences });
+      message.success("Preferências de notificação actualizadas.");
+    } catch {
+      message.error("Não foi possível guardar as preferências.");
+    }
+  };
 
   const handlePasswordSubmit = (values: any) => {
     if (values.newPassword !== values.confirmPassword) {
@@ -132,16 +211,25 @@ export default function DefinicoesPessoais() {
                   src={resolveAssetUrl(avatarUrl)}
                   icon={!avatarUrl && <UserOutlined />}
                 />
-                <Upload
-                  showUploadList={false}
-                  customRequest={({ file }) =>
-                    handleAvatarUpload({ file: file as File })
-                  }
+                <ImgCrop
+                  rotationSlider
+                  zoomSlider
+                  aspect={1}
+                  cropShape="round"
+                  modalTitle="Ajustar foto"
+                  showGrid
                 >
-                  <Button icon={<UploadOutlined />} loading={uploadingAvatar}>
-                    Alterar foto
-                  </Button>
-                </Upload>
+                  <Upload
+                    showUploadList={false}
+                    customRequest={({ file }) =>
+                      handleAvatarUpload({ file: file as File })
+                    }
+                  >
+                    <Button icon={<UploadOutlined />} loading={uploadingAvatar}>
+                      Alterar foto
+                    </Button>
+                  </Upload>
+                </ImgCrop>
               </Space>
 
               <Row gutter={16}>
@@ -225,6 +313,60 @@ export default function DefinicoesPessoais() {
                 Alterar Password
               </Button>
             </Form>
+          </Card>
+        </Col>
+
+        <Col xs={24}>
+          <Card
+            title="Preferências de Notificação"
+            extra={
+              <Button
+                type="primary"
+                loading={savingPreferences}
+                onClick={handleSavePreferences}
+              >
+                Guardar alterações
+              </Button>
+            }
+          >
+            <Table<NotificationPreferenceRow>
+              rowKey="type"
+              loading={loadingPreferences}
+              dataSource={preferences}
+              pagination={false}
+              columns={[
+                {
+                  title: "Tipo de notificação",
+                  dataIndex: "type",
+                  render: (type: string) =>
+                    NOTIFICATION_TYPE_LABELS[type] ?? type,
+                },
+                {
+                  title: "Web (sino)",
+                  align: "center",
+                  render: (_, record) => (
+                    <Checkbox
+                      checked={record.web}
+                      onChange={(e) =>
+                        toggleChannel(record.type, "web", e.target.checked)
+                      }
+                    />
+                  ),
+                },
+                {
+                  title: "E-mail",
+                  align: "center",
+                  render: (_, record) => (
+                    <Checkbox
+                      checked={record.email}
+                      onChange={(e) =>
+                        toggleChannel(record.type, "email", e.target.checked)
+                      }
+                    />
+                  ),
+                },
+              ]}
+            />
           </Card>
         </Col>
       </Row>

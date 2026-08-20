@@ -2,6 +2,7 @@
 import {
   HomeOutlined,
   LockOutlined,
+  SafetyCertificateOutlined,
   StopOutlined,
   UnlockOutlined,
 } from "@ant-design/icons";
@@ -9,6 +10,9 @@ import {
   Avatar,
   Button,
   Card,
+  Checkbox,
+  Empty,
+  Modal,
   Popconfirm,
   Select,
   Space,
@@ -16,11 +20,18 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message
+  message,
 } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
-import { useFetch, useMutationPatch } from "../../../utils/fetch";
+import { useAuthStore } from "../../../store/authStore";
+import {
+  useFetch,
+  useMutationDel,
+  useMutationPatch,
+  useMutationPost,
+} from "../../../utils/fetch";
+import type { IRole } from "../../../utils/type";
 
 const { Text } = Typography;
 
@@ -55,8 +66,19 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Utilizadores() {
+  const { user: currentUser } = useAuthStore();
+  const isSuperAdmin = currentUser?.type === "SUPERADMIN";
+
   const [filterType, setFilterType] = useState<string | undefined>();
   const [filterStatus, setFilterStatus] = useState<string | undefined>();
+
+  const [assignRolesUser, setAssignRolesUser] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const queryStr = [
     filterType ? `type=${filterType}` : "",
@@ -75,14 +97,98 @@ export default function Utilizadores() {
     "users",
   );
 
+  const { data: rolesData, isPending: loadingRoles } = useFetch<{
+    success: boolean;
+    roles: IRole[];
+  }>(["roles"], "roles", { enabled: isSuperAdmin });
+
+  const {
+    data: userRolesData,
+    isPending: loadingUserRoles,
+    refetch: refetchUserRoles,
+  } = useFetch<{ success: boolean; roles: IRole[] }>(
+    ["user-roles", assignRolesUser?.id ?? ""],
+    "users",
+    {
+      params: assignRolesUser ? `${assignRolesUser.id}/roles` : undefined,
+      enabled: !!assignRolesUser,
+    },
+  );
+
+  const { mutateAsync: assignRole, isPending: assigning } = useMutationPost(
+    ["user-roles"],
+    "assign-roles-to-user",
+  );
+  const { mutateAsyncDel: unassignRole, isPending: unassigning } =
+    useMutationDel(["user-roles"], "users");
+
   const users = data?.users ?? [];
   const counts = data?.counts ?? {};
+  const allRoles = rolesData?.roles ?? [];
 
   const handleStatusChange = async (id: string, status: string) => {
     await mutateAsyncPatch({ id, urlParams: "status", body: { status } });
     message.success("Estado actualizado.");
     refetch();
   };
+
+  useEffect(() => {
+    if (!userRolesData?.roles) return;
+    setSelectedRoleIds(new Set(userRolesData.roles.map((r) => r.id)));
+  }, [userRolesData]);
+
+  const onOpenAssignRoles = (r: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+  }) => {
+    setAssignRolesUser({
+      id: r.id,
+      name: `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim(),
+    });
+  };
+
+  const onCloseAssignRoles = () => {
+    setAssignRolesUser(null);
+    setSelectedRoleIds(new Set());
+  };
+
+  const onToggleRole = (roleId: string, checked: boolean) => {
+    setSelectedRoleIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(roleId);
+      else next.delete(roleId);
+      return next;
+    });
+  };
+
+  const onSaveRoles = async () => {
+    if (!assignRolesUser) return;
+    const current = new Set(userRolesData?.roles?.map((r) => r.id) ?? []);
+    const toAdd = [...selectedRoleIds].filter((id) => !current.has(id));
+    const toRemove = [...current].filter((id) => !selectedRoleIds.has(id));
+
+    try {
+      for (const roleId of toAdd) {
+        await assignRole({ userId: assignRolesUser.id, roleId });
+      }
+      for (const roleId of toRemove) {
+        await unassignRole({
+          id: assignRolesUser.id,
+          urlParams: `roles/${roleId}`,
+        });
+      }
+      message.success("Papéis actualizados.");
+      refetchUserRoles();
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ??
+          "Não foi possível actualizar os Papéis.",
+      );
+    }
+  };
+
+  const savingRoles = assigning || unassigning;
 
   const typeOptions = [
     { label: "Todos", value: "" },
@@ -165,7 +271,7 @@ export default function Utilizadores() {
               title: "Utilizador",
               render: (_, r: any) => (
                 <Space>
-                  <Avatar src={r.avatar} size="small">
+                  <Avatar src={r.avatar} shape="square">
                     {r.firstName?.[0]}
                   </Avatar>
                   <div>
@@ -191,7 +297,7 @@ export default function Utilizadores() {
             {
               title: "Tipo",
               render: (_, r: any) => (
-                <Tag color={TYPE_COLOR[r.type]}>
+                <Tag color={TYPE_COLOR[r.type]} variant="outlined">
                   {TYPE_LABEL[r.type] ?? r.type}
                 </Tag>
               ),
@@ -199,7 +305,7 @@ export default function Utilizadores() {
             {
               title: "Estado",
               render: (_, r: any) => (
-                <Tag color={STATUS_COLOR[r.status]}>
+                <Tag color={STATUS_COLOR[r.status]} variant="outlined">
                   {STATUS_LABEL[r.status] ?? r.status}
                 </Tag>
               ),
@@ -214,9 +320,19 @@ export default function Utilizadores() {
             {
               title: "Acções",
               fixed: "right",
-              width: "12rem",
+              width: isSuperAdmin ? "16rem" : "12rem",
               render: (_, r: any) => (
                 <Space>
+                  {isSuperAdmin && (
+                    <Tooltip title="Atribuir Papéis dinâmicos">
+                      <Button
+                        icon={<SafetyCertificateOutlined />}
+                        onClick={() => onOpenAssignRoles(r)}
+                      >
+                        Papéis
+                      </Button>
+                    </Tooltip>
+                  )}
                   {r.status === "ACTIVE" && (
                     <Tooltip title="Suspender conta">
                       <Popconfirm
@@ -226,7 +342,6 @@ export default function Utilizadores() {
                         onConfirm={() => handleStatusChange(r.id, "SUSPENDED")}
                       >
                         <Button
-                          size="small"
                           icon={<StopOutlined />}
                           danger
                           loading={changing}
@@ -244,11 +359,7 @@ export default function Utilizadores() {
                         cancelText="Não"
                         onConfirm={() => handleStatusChange(r.id, "ACTIVE")}
                       >
-                        <Button
-                          size="small"
-                          icon={<UnlockOutlined />}
-                          loading={changing}
-                        >
+                        <Button icon={<UnlockOutlined />} loading={changing}>
                           Reactivar
                         </Button>
                       </Popconfirm>
@@ -262,11 +373,7 @@ export default function Utilizadores() {
                         cancelText="Não"
                         onConfirm={() => handleStatusChange(r.id, "ACTIVE")}
                       >
-                        <Button
-                          size="small"
-                          icon={<LockOutlined />}
-                          loading={changing}
-                        >
+                        <Button icon={<LockOutlined />} loading={changing}>
                           Activar
                         </Button>
                       </Popconfirm>
@@ -278,6 +385,34 @@ export default function Utilizadores() {
           ]}
         />
       </Card>
+
+      <Modal
+        open={!!assignRolesUser}
+        title={`Atribuir Papéis — ${assignRolesUser?.name ?? ""}`}
+        onCancel={onCloseAssignRoles}
+        okText="Guardar"
+        cancelText="Cancelar"
+        okButtonProps={{ loading: savingRoles }}
+        onOk={onSaveRoles}
+      >
+        {loadingRoles || loadingUserRoles ? (
+          <Empty description="A carregar..." />
+        ) : allRoles.length === 0 ? (
+          <Empty description="Ainda não existem Papéis dinâmicos. Crie um em Papéis & Permissões." />
+        ) : (
+          <Space direction="vertical">
+            {allRoles.map((role) => (
+              <Checkbox
+                key={role.id}
+                checked={selectedRoleIds.has(role.id)}
+                onChange={(e) => onToggleRole(role.id, e.target.checked)}
+              >
+                {role.name}
+              </Checkbox>
+            ))}
+          </Space>
+        )}
+      </Modal>
     </>
   );
 }

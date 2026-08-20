@@ -40,6 +40,18 @@ axiosInstance.interceptors.response.use(
 
     const original = error.config;
 
+    // Modo de manutenção — o backend só devolve 503 a quem não é
+    // ADMIN/SUPERADMIN (ver plugin/maintenance.ts); redirecciona para a
+    // página dedicada com a mensagem configurada.
+    if (error.response?.status === 503) {
+      const message = error.response?.data?.message;
+      if (message) sessionStorage.setItem("maintenanceMessage", message);
+      if (window.location.pathname !== "/manutencao") {
+        window.location.href = "/manutencao";
+      }
+      return Promise.reject(error);
+    }
+
     // Só tenta refresh em 401 e apenas uma vez por request
     if (error.response?.status === 401 && original && !original._retry) {
       if (isRefreshing) {

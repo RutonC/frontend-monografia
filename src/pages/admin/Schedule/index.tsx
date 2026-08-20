@@ -30,7 +30,7 @@ import { Input } from "../../../components/Input";
 import {
   useFetch,
   useMutationDel,
-  useMutationPost
+  useMutationPost,
 } from "../../../utils/fetch";
 import type {
   IAcademicYear,
@@ -269,6 +269,7 @@ export default function Horario() {
                           color,
                           fontSize: 10,
                         }}
+                        variant="outlined"
                       >
                         {slots.length}
                       </Tag>
@@ -344,6 +345,7 @@ export default function Horario() {
                           >
                             <Avatar
                               size={16}
+                              shape="square"
                               src={slot.teacher?.employee?.user?.avatar}
                               style={{ fontSize: 10 }}
                             >

@@ -1,8 +1,5 @@
 // pages/admin/financeiro/pagamentos.tsx
-import {
-  DollarOutlined,
-  HomeOutlined
-} from "@ant-design/icons";
+import { HomeOutlined } from "@ant-design/icons";
 import {
   Avatar,
   Button,
@@ -16,7 +13,6 @@ import {
   Select,
   Space,
   Statistic,
-  Table,
   Tag,
   Typography,
   message,
@@ -26,6 +22,7 @@ import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import DrawerFooter from "../../../components/DrawerFooter";
 import { Input } from "../../../components/Input";
+import ResponsiveTable from "../../../components/ResponsiveTable";
 import {
   useFetch,
   useMutationDel,
@@ -177,8 +174,8 @@ export default function Pagamentos() {
         <Col xs={12} sm={8} md={6}>
           <Card
             style={{
-              background: "var(--color-background-secondary)",
-              border: "none",
+              background: "var(--lg-ink-50)",
+              border: "0.5px solid var(--lg-ink-200)",
             }}
           >
             <Statistic
@@ -186,15 +183,17 @@ export default function Pagamentos() {
               value={totalPaid}
               precision={2}
               prefix="MZN"
-              valueStyle={{ color: "var(--color-text-success)", fontSize: 20 }}
+              styles={{
+                content: { color: "var(--color-text-success)", fontSize: 20 },
+              }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} md={6}>
           <Card
             style={{
-              background: "var(--color-background-secondary)",
-              border: "none",
+              background: "var(--lg-ink-50)",
+              border: "0.5px solid var(--lg-ink-200)",
             }}
           >
             <Statistic
@@ -202,15 +201,17 @@ export default function Pagamentos() {
               value={totalPending}
               precision={2}
               prefix="MZN"
-              valueStyle={{ color: "var(--color-text-warning)", fontSize: 20 }}
+              styles={{
+                content: { color: "var(--color-text-warning)", fontSize: 20 },
+              }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} md={6}>
           <Card
             style={{
-              background: "var(--color-background-secondary)",
-              border: "none",
+              background: "var(--lg-ink-50)",
+              border: "0.5px solid var(--lg-ink-200)",
             }}
           >
             <Statistic
@@ -218,21 +219,26 @@ export default function Pagamentos() {
               value={totalOverdue}
               precision={2}
               prefix="MZN"
-              valueStyle={{ color: "var(--color-text-danger)", fontSize: 20 }}
+              styles={{
+                content: {
+                  color: "var(--color-text-danger)",
+                  fontSize: 20,
+                },
+              }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={8} md={6}>
           <Card
             style={{
-              background: "var(--color-background-secondary)",
-              border: "none",
+              background: "var(--lg-ink-50)",
+              border: "0.5px solid var(--lg-ink-200)",
             }}
           >
             <Statistic
               title="Facturas totais"
               value={invoices.length}
-              valueStyle={{ fontSize: 20 }}
+              styles={{ content: { fontSize: 20 } }}
             />
           </Card>
         </Col>
@@ -266,7 +272,7 @@ export default function Pagamentos() {
         }
         style={{ marginBottom: 24 }}
       >
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loadingInvoices}
           dataSource={invoices}
@@ -279,7 +285,7 @@ export default function Pagamentos() {
                 const u = r.enrollment?.student?.user;
                 return (
                   <Space>
-                    <Avatar size="small" src={u?.avatar}>
+                    <Avatar shape="square" src={u?.avatar}>
                       {u?.firstName?.[0]}
                     </Avatar>
                     <div>
@@ -325,7 +331,7 @@ export default function Pagamentos() {
             {
               title: "Estado",
               render: (_, r: any) => (
-                <Tag color={INVOICE_STATUS_COLOR[r.status]}>
+                <Tag color={INVOICE_STATUS_COLOR[r.status]} variant="outlined">
                   {INVOICE_STATUS_LABEL[r.status] ?? r.status}
                 </Tag>
               ),
@@ -340,9 +346,11 @@ export default function Pagamentos() {
               title: "Multa",
               render: (_, r: any) =>
                 r.fines?.length > 0 ? (
-                  <Tag color="red">Multa aplicada</Tag>
+                  <Tag color="red" variant="outlined">
+                    Multa aplicada
+                  </Tag>
                 ) : r.finePercent ? (
-                  <Tag color="orange">
+                  <Tag color="orange" variant="outlined">
                     {(Number(r.finePercent) * 100).toFixed(0)}% multa
                   </Tag>
                 ) : (
@@ -355,9 +363,7 @@ export default function Pagamentos() {
               width: "8rem",
               render: (_, r: any) => (
                 <Button
-                  size="small"
                   type={r.status === "PAID" ? "default" : "primary"}
-                  icon={<DollarOutlined />}
                   disabled={r.status === "PAID" || r.status === "CANCELLED"}
                   onClick={() => openPayDrawer(r)}
                 >
@@ -371,7 +377,7 @@ export default function Pagamentos() {
 
       {/* Tabela de pagamentos realizados */}
       <Card title="Histórico de Pagamentos">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={loadingPayments}
           dataSource={payments}
@@ -412,11 +418,7 @@ export default function Pagamentos() {
               fixed: "right",
               width: "5rem",
               render: (_, r: any) => (
-                <Button
-                  size="small"
-                  danger
-                  onClick={() => handleDeletePayment(r.id)}
-                >
+                <Button danger onClick={() => handleDeletePayment(r.id)}>
                   Remover
                 </Button>
               ),

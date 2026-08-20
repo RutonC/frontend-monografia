@@ -466,6 +466,7 @@ function ReportPaymentModal({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("category", "payment-proofs");
       const res = await axiosInstance.post("/assets/upload", formData);
       setProofUrl(res.data.url);
       message.success("Comprovativo anexado.");

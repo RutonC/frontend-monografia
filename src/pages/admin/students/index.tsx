@@ -1,9 +1,10 @@
 // pages/admin/students/index.tsx
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Table, message } from "antd";
+import { Button, Card, message } from "antd";
 import { useNavigate } from "react-router-dom";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import Filters, { type FiltersState } from "../../../components/Filters";
+import ResponsiveTable from "../../../components/ResponsiveTable";
 import { useFetch, useMutationDel } from "../../../utils/fetch";
 import type { IStudent } from "../../../utils/type";
 import { columns } from "./columns";
@@ -50,7 +51,7 @@ export default function Students() {
           </Button>
         }
       >
-        <Table<IStudent>
+        <ResponsiveTable<IStudent>
           rowKey="id"
           columns={columns({ onEdit, onDelete })}
           loading={loading}

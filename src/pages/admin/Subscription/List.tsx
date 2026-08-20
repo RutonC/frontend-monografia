@@ -143,7 +143,7 @@ export default function ListaInscricoes() {
               title: "Aluno",
               render: (_, r: any) => (
                 <Space>
-                  <Avatar size="small" src={r.student?.user?.avatar}>
+                  <Avatar shape="square" src={r.student?.user?.avatar}>
                     {r.student?.user?.firstName?.[0]}
                   </Avatar>
                   <div>
@@ -176,7 +176,10 @@ export default function ListaInscricoes() {
             {
               title: "Estado",
               render: (_, r: any) => (
-                <Tag color={STATUS_COLOR[r.status] ?? "default"}>
+                <Tag
+                  color={STATUS_COLOR[r.status] ?? "default"}
+                  variant="outlined"
+                >
                   {STATUS_LABEL[r.status] ?? r.status}
                 </Tag>
               ),
@@ -186,11 +189,13 @@ export default function ListaInscricoes() {
               render: (_, r: any) => {
                 const pending = r.invoices?.length ?? 0;
                 return pending > 0 ? (
-                  <Tag color="warning">
+                  <Tag color="warning" variant="outlined">
                     {pending} pendente{pending > 1 ? "s" : ""}
                   </Tag>
                 ) : (
-                  <Tag color="success">Em dia</Tag>
+                  <Tag color="success" variant="outlined">
+                    Em dia
+                  </Tag>
                 );
               },
             },
@@ -207,14 +212,12 @@ export default function ListaInscricoes() {
                 <Space>
                   <Tooltip title="Ver detalhes">
                     <Button
-                      size="small"
                       icon={<EyeOutlined />}
                       onClick={() => navigate(`/inscricao/${r.id}`)}
                     />
                   </Tooltip>
                   <Tooltip title="Actualizar">
                     <Button
-                      size="small"
                       icon={<SwapOutlined />}
                       onClick={() => navigate("/inscricao/actualizar")}
                     />

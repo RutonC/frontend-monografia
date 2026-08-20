@@ -45,6 +45,9 @@ const theme: ThemeConfig = {
       subMenuItemSelectedColor: "#cfc7ef",
       popupBg: "#3e37bc",
     },
+    InputNumber: {
+      controlHeight: 40,
+    },
     Typography: {
       titleMarginBottom: 0,
       titleMarginTop: 0,

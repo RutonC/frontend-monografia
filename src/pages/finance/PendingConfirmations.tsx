@@ -12,13 +12,13 @@ import {
   Input as AntInput,
   Modal,
   Space,
-  Table,
   Tag,
   Typography,
   message,
 } from "antd";
 import { useState } from "react";
 import CustomBreadcrumb from "../../components/CustomBreadcrumb";
+import ResponsiveTable from "../../components/ResponsiveTable";
 import { useAuthStore } from "../../store/authStore";
 import { useFetch, useMutationPatch } from "../../utils/fetch";
 import { intl } from "../../utils/intl";
@@ -111,7 +111,7 @@ export default function PendingConfirmations() {
       />
 
       <Card title="Auto-reportados por encarregados/alunos">
-        <Table
+        <ResponsiveTable
           rowKey="id"
           loading={isPending}
           dataSource={payments}

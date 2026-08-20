@@ -141,8 +141,11 @@ export const useMutationDel = (queries: string[], url: string) => {
   const queryClient = useQueryClient();
 
   const { mutateAsync: mutateAsyncDel, isPending } = useMutation({
-    mutationFn: async (id: any) => {
-      const res = await axiosInstance.delete(`/${url}/${id}`);
+    mutationFn: async (data: string | { id: string; urlParams?: string }) => {
+      const { id, urlParams } =
+        typeof data === "string" ? { id: data, urlParams: undefined } : data;
+      const urlBase = urlParams ? `${url}/${id}/${urlParams}` : `${url}/${id}`;
+      const res = await axiosInstance.delete(`/${urlBase}`);
       return res.data;
     },
     onSuccess: () => {

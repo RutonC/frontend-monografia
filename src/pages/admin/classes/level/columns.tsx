@@ -41,7 +41,7 @@ export const columns = ({
     dataIndex: "status",
     key: "status",
     render: (status) => (
-      <Tag color={status ? "green" : "red"}>
+      <Tag color={status ? "green" : "red"} variant="outlined">
         {status ? "Activo" : "Desactivado"}
       </Tag>
     ),

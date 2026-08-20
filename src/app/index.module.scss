@@ -9,12 +9,41 @@ $aside-width-folded: 3.85rem;
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
+  position: relative;
+
+  // Fundo escurecido atrás do menu deslizante em ecrãs estreitos —
+  // clicar nele fecha o menu (ver AppLayout.tsx).
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 506;
+
+    @include laptop-up {
+      display: none;
+    }
+  }
 
   .asideWrapper {
     height: 100vh;
     padding: 10px;
     flex-shrink: 0;
     // background-color: var(--lg-primary);
+
+    @include compact-down {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 508;
+      padding: 0;
+      width: 85vw;
+      max-width: 320px;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+
+      &.mobileOpen {
+        transform: translateX(0);
+      }
+    }
 
     .aside {
       border-radius: 0 4px 4px 4px;
@@ -34,6 +63,16 @@ $aside-width-folded: 3.85rem;
       max-width: $aside-width !important;
       min-width: $aside-width !important;
       width: $aside-width !important;
+
+      @include compact-down {
+        border-radius: 0 !important;
+        position: static;
+        height: 100vh !important;
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        width: 100% !important;
+      }
 
       scrollbar-width: thin;
       scrollbar-color: var(--lg-primary-hover) var(--lg-primary);
@@ -110,13 +149,18 @@ $aside-width-folded: 3.85rem;
   .header {
     flex-shrink: 0;
     margin-right: 10px;
-
+    background: transparent;
     position: sticky;
     top: 10px;
     border-radius: 4px;
 
     z-index: 10;
     padding: 0 1.875rem 0 1.875rem;
+
+    @include compact-down {
+      margin-right: 0;
+      padding: 0 0.75rem;
+    }
   }
 
   .content {
@@ -128,6 +172,11 @@ $aside-width-folded: 3.85rem;
     flex: 1;
 
     padding: 1.875rem 1.875rem 1.875rem;
+
+    @include compact-down {
+      padding: 1rem;
+    }
+
     &::-webkit-scrollbar {
       width: 8px;
     }

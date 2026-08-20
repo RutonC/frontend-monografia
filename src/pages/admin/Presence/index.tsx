@@ -399,7 +399,7 @@ export default function RegistarAssiduidade() {
                   title: "Aluno",
                   render: (_: any, r: AttRow) => (
                     <Flex align="center" gap={8}>
-                      <Avatar size="small" src={r.avatar}>
+                      <Avatar shape="square" src={r.avatar}>
                         {r.firstName[0]}
                       </Avatar>
                       <div>
@@ -447,7 +447,7 @@ export default function RegistarAssiduidade() {
                   render: (_: any, r: AttRow) => {
                     const cfg = STATUS_CONFIG[r.status];
                     return (
-                      <Tag color={cfg.color} icon={cfg.icon}>
+                      <Tag color={cfg.color} icon={cfg.icon} variant="outlined">
                         {cfg.label}
                       </Tag>
                     );

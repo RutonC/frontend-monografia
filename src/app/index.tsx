@@ -1,4 +1,8 @@
-import { DashboardOutlined, NotificationOutlined } from "@ant-design/icons";
+import {
+  DashboardOutlined,
+  NotificationOutlined,
+  SafetyCertificateOutlined,
+} from "@ant-design/icons";
 import { ConfigProvider, Layout } from "antd";
 import { useEffect } from "react";
 import {
@@ -39,6 +43,7 @@ import Encarregados from "../pages/admin/Guardian";
 import LancamentoNotas from "../pages/admin/Marks";
 import Mensagens from "../pages/admin/Message"; // componente partilhado — funciona para admin e professor
 import RegistarAssiduidade from "../pages/admin/Presence";
+import RolesPermissoes from "../pages/admin/Roles";
 import Horario from "../pages/admin/Schedule";
 import Students from "../pages/admin/students";
 import AddNewStudent from "../pages/admin/students/add-new";
@@ -76,6 +81,7 @@ import ChangePasswordForced from "../pages/auth/ChangePassword";
 import Login from "../pages/auth/login";
 import FinanceDashboard from "../pages/finance/Dashboard";
 import PendingConfirmations from "../pages/finance/PendingConfirmations";
+import Maintenance from "../pages/Maintenance";
 import NotFound from "../pages/notfound";
 import SecretaryDashboard from "../pages/secretary/Dashboard";
 import DefinicoesPessoais from "../pages/settings/Personal";
@@ -99,6 +105,10 @@ const { Content } = Layout;
 function useAdminMenuItems() {
   const { user } = useAuthStore();
   const isSuperAdmin = ["SUPERADMIN", "ADMIN"].includes(user?.type ?? "");
+  // RBAC dinâmico (Fase A) — o backend só concede can("manage","all") ao
+  // SUPERADMIN (ver lib/ability.ts), por isso este item fica de fora do
+  // isSuperAdmin genérico acima (que também inclui ADMIN).
+  const isTrueSuperAdmin = user?.type === "SUPERADMIN";
 
   return [
     getItem("Painel", "/", <DashboardOutlined />, <Dashboard />),
@@ -207,6 +217,16 @@ function useAdminMenuItems() {
     getItem("Relatórios", "/relatorios", <BiFile size={20} />, <Reports />),
     getItem("Configurações", "/configuracoes", <BiCog size={20} />, null, [
       getItem("Escola", "/escola", <BiRadioCircleMarked />, <EscolaSettings />),
+      ...(isTrueSuperAdmin
+        ? [
+            getItem(
+              "Papéis & Permissões",
+              "/papeis-e-permissoes",
+              <SafetyCertificateOutlined size={20} />,
+              <RolesPermissoes />,
+            ),
+          ]
+        : []),
       getItem(
         "Ano Lectivo",
         "/ano-lectivo",
@@ -411,6 +431,8 @@ function getAdminSelectedKey(pathname: string): string {
   if (pathname.startsWith("/mensagens")) return "/mensagens";
   if (pathname.startsWith("/encarregados")) return "/encarregados";
   if (pathname.startsWith("/utilizadores")) return "/utilizadores";
+  if (pathname.startsWith("/papeis-e-permissoes"))
+    return "/papeis-e-permissoes";
   if (pathname.startsWith("/ano-lectivo")) return "/ano-lectivo";
   if (pathname.startsWith("/escola")) return "/escola";
   return pathname;
@@ -784,6 +806,7 @@ export default function App() {
             </RequireAuth>
           }
         />
+        <Route path="/manutencao" element={<Maintenance />} />
 
         {/* Painel do Encarregado */}
         <Route

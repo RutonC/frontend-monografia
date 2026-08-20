@@ -1,0 +1,33 @@
+.hamburger {
+  display: none;
+
+  @include compact-down {
+    display: inline-flex;
+  }
+}
+
+.search {
+  width: 100%;
+
+  @include compact-down {
+    // Só o ícone cabe confortavelmente ao lado do hambúrguer + acções —
+    // o texto de placeholder desaparece, o clique continua a abrir a
+    // pesquisa (ver Navbar.tsx).
+    max-width: 44px;
+    min-width: 44px;
+    padding-left: 0;
+    padding-right: 0;
+
+    :global(.ant-input) {
+      display: none;
+    }
+  }
+}
+
+.avatar {
+  border: 1px solid var(--lg-primary);
+
+  &:hover {
+    cursor: pointer;
+  }
+}
