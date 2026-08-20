@@ -76,7 +76,7 @@ import GuardianStudentDetail from "../pages/guardian/StudentDetail";
 
 import AppLayout from "../components/AppLayout";
 import Noticias from "../pages/admin/News";
-import Reports from "../pages/admin/Reports";
+import Reports from "../pages/admin/reports";
 import ChangePasswordForced from "../pages/auth/ChangePassword";
 import Login from "../pages/auth/login";
 import FinanceDashboard from "../pages/finance/Dashboard";
