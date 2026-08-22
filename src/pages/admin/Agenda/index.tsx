@@ -24,11 +24,13 @@ import type { IAcademicYear, ILevel, ISection } from "../../../utils/type";
 
 const { Text, Title } = Typography;
 
-const GRADE_TYPES = ["AC1", "AC2", "EXAM"] as const;
+const GRADE_TYPES = ["ACS1", "ACS2", "ACS3", "ACP1", "ACP2"] as const;
 const GRADE_LABELS: Record<string, string> = {
-  AC1: "AC1",
-  AC2: "AC2",
-  EXAM: "Exame",
+  ACS1: "ACS1",
+  ACS2: "ACS2",
+  ACS3: "ACS3",
+  ACP1: "ACP1",
+  ACP2: "ACP2",
 };
 
 // Calcula média simples

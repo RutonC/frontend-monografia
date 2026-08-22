@@ -1,7 +1,11 @@
+import { toGrade } from "@/utils/toGrade";
 import {
+  CalendarOutlined,
   CheckOutlined,
+  DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  LockOutlined,
   SaveOutlined,
   TableOutlined,
 } from "@ant-design/icons";
@@ -11,11 +15,14 @@ import {
   Button,
   Card,
   Col,
+  DatePicker,
   Form,
+  Input,
   InputNumber,
+  Modal,
+  Popconfirm,
   Row,
   Select,
-  Spin,
   Table,
   Tabs,
   Tag,
@@ -23,8 +30,11 @@ import {
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import AcademicYearSelect from "../../components/AcademicYearSelect";
+import PageLoader from "../../components/PageLoader";
 import { api, useAuthStore } from "../../store/authStore";
 import {
   type StudentFichaRow,
@@ -47,18 +57,37 @@ const GRADE_TYPES = [
   { value: "ACP2", label: "ACP 2 — 2ª Avaliação com Prova" },
 ];
 
-interface Section {
-  id: string;
-  name: string;
-  level?: { name: string };
-}
 interface Subject {
   id: string;
   name: string;
 }
+interface Section {
+  id: string;
+  name: string;
+  level?: { name: string };
+  // Só as atribuições do PRÓPRIO professor nesta turma (o backend já
+  // filtra) — usado para o dropdown de disciplina depender da turma.
+  teacherSections?: { subject: Subject }[];
+}
 interface Term {
   id: string;
   name: string;
+  // O backend já os devolve (term.controller.ts) — usados para provar
+  // visualmente qual é o trimestre corrente e as datas registadas.
+  startDate?: string;
+  endDate?: string;
+}
+
+// Disciplinas que o professor lecciona na turma seleccionada — nunca o
+// catálogo inteiro da escola.
+function subjectsForSection(
+  sections: Section[],
+  sectionId: string | null,
+): Subject[] {
+  const section = sections.find((s) => s.id === sectionId);
+  return (
+    section?.teacherSections?.map((ts) => ts.subject).filter(Boolean) ?? []
+  );
 }
 
 interface GradeEntryRow {
@@ -94,14 +123,14 @@ function ScoreCell({ v }: { v: number | null }) {
 
 function TabLancar({
   sections,
-  subjects,
   terms,
+  currentTermId,
   user,
   initialSection,
 }: {
   sections: Section[];
-  subjects: Subject[];
   terms: Term[];
+  currentTermId?: string;
   user: any;
   initialSection: string | null;
 }) {
@@ -112,6 +141,11 @@ function TabLancar({
   const [rows, setRows] = useState<GradeEntryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Erro de bloqueio de trimestre (checkTermLock) — mostrado como bloco
+  // persistente, não como toast (fácil de perder).
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const subjects = subjectsForSection(sections, selSection);
+  const currentTerm = terms.find((t) => t.id === currentTermId);
 
   useEffect(() => {
     if (!selSection || !selSubject || !selTerm || !gradeType) {
@@ -121,7 +155,9 @@ function TabLancar({
     setLoading(true);
     Promise.all([
       api.get(`/enrollments?sectionId=${selSection}&status=APPROVED`),
-      api.get(`/grades?subjectId=${selSubject}&termId=${selTerm}`),
+      api.get(
+        `/teacher/me/grades?sectionId=${selSection}&subjectId=${selSubject}&termId=${selTerm}`,
+      ),
     ])
       .then(([eRes, gRes]) => {
         const enrollments: any[] = eRes.data?.enrollments ?? [];
@@ -143,8 +179,12 @@ function TabLancar({
               avatar: u.avatar,
               identifier: u.identifier,
               gradeId: g?.id,
-              currentValue: g?.value ?? null,
-              newValue: g?.value ?? null,
+              // Grade.value é Decimal no Prisma — chega da API como
+              // string (ex.: "17.00"); sem converter, reenviar sem
+              // editar falha a validação (espera number). Mesmo padrão
+              // já usado nas Pautas (toGrade), só faltava aqui.
+              currentValue: toGrade(g?.value),
+              newValue: toGrade(g?.value),
               saved: false,
             };
           }),
@@ -164,9 +204,11 @@ function TabLancar({
   const handleSave = async () => {
     if (!selSubject || !selTerm) return;
     setSaving(true);
+    setSaveError(null);
     const toSave = rows.filter((r) => r.newValue !== null && !r.saved);
     let ok = 0,
       errors = 0;
+    let lastErrorMessage: string | null = null;
     for (const r of toSave) {
       try {
         const payload = {
@@ -195,8 +237,9 @@ function TabLancar({
           ),
         );
         ok++;
-      } catch {
+      } catch (err: any) {
         errors++;
+        lastErrorMessage = err?.response?.data?.message ?? lastErrorMessage;
       }
     }
     if (ok)
@@ -204,7 +247,10 @@ function TabLancar({
         `${ok} nota${ok > 1 ? "s" : ""} guardada${ok > 1 ? "s" : ""}!`,
       );
     if (errors)
-      message.error(`${errors} erro${errors > 1 ? "s" : ""} ao guardar.`);
+      setSaveError(
+        lastErrorMessage ??
+          `${errors} erro${errors > 1 ? "s" : ""} ao guardar.`,
+      );
     setSaving(false);
   };
 
@@ -222,7 +268,12 @@ function TabLancar({
       title: "Aluno",
       render: (_, r) => (
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar src={r.avatar} size={32} style={{ background: "#4f46e5" }}>
+          <Avatar
+            src={r.avatar}
+            shape="square"
+            size={32}
+            style={{ background: "#4f46e5" }}
+          >
             {r.firstName?.charAt(0)}
           </Avatar>
           <div>
@@ -288,6 +339,67 @@ function TabLancar({
 
   return (
     <div>
+      {currentTerm && (
+        <Card
+          size="small"
+          style={{
+            borderRadius: 12,
+            marginBottom: 16,
+            background: "var(--color-background-secondary)",
+            border: "none",
+          }}
+        >
+          <Typography.Text style={{ fontSize: 13 }}>
+            <CalendarOutlined style={{ marginRight: 6 }} />
+            Trimestre corrente: <strong>{currentTerm.name}</strong>
+            {currentTerm.startDate && currentTerm.endDate && (
+              <>
+                {" "}
+                ({dayjs(currentTerm.startDate).format("DD/MM/YYYY")} –{" "}
+                {dayjs(currentTerm.endDate).format("DD/MM/YYYY")})
+              </>
+            )}
+          </Typography.Text>
+        </Card>
+      )}
+
+      {saveError && (
+        <Card
+          size="small"
+          style={{
+            borderRadius: 12,
+            marginBottom: 16,
+            background: "var(--color-background-danger)",
+            border: "0.5px solid var(--color-border-danger)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <LockOutlined
+              style={{ fontSize: 18, color: "var(--color-text-danger)", marginTop: 2 }}
+            />
+            <div style={{ flex: 1 }}>
+              <Typography.Text
+                strong
+                style={{ color: "var(--color-text-danger)", display: "block" }}
+              >
+                Não foi possível guardar
+              </Typography.Text>
+              <Typography.Text style={{ color: "var(--color-text-danger)", fontSize: 13 }}>
+                {saveError}
+              </Typography.Text>
+            </div>
+            <Button
+              type="text"
+              size="small"
+              onClick={() => setSaveError(null)}
+              style={{ color: "var(--color-text-danger)" }}
+            >
+              ✕
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card style={{ borderRadius: 12, marginBottom: 16 }}>
         <Row gutter={[12, 12]} align="bottom">
           <Col xs={24} sm={12} md={4}>
@@ -297,6 +409,7 @@ function TabLancar({
                 value={selSection}
                 onChange={(v) => {
                   setSelSection(v);
+                  setSelSubject(null);
                   setRows([]);
                 }}
                 options={sections.map((s) => ({
@@ -322,13 +435,35 @@ function TabLancar({
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={4}>
-            <Form.Item label="Trimestre" style={{ marginBottom: 0 }}>
+            <Form.Item
+              label="Trimestre"
+              style={{ marginBottom: 0 }}
+              help={
+                selTerm && currentTermId && selTerm !== currentTermId ? (
+                  <Text type="warning" style={{ fontSize: 11 }}>
+                    Trimestre fechado — precisa de excepção para guardar.
+                  </Text>
+                ) : undefined
+              }
+            >
               <Select
                 placeholder="Trimestre"
                 value={selTerm}
                 onChange={setSelTerm}
                 disabled={!selSubject}
-                options={terms.map((t) => ({ value: t.id, label: t.name }))}
+                options={terms.map((t) => ({
+                  value: t.id,
+                  label: (
+                    <span>
+                      {t.name}
+                      {currentTermId && t.id !== currentTermId && (
+                        <LockOutlined
+                          style={{ marginLeft: 6, fontSize: 11, color: "#999" }}
+                        />
+                      )}
+                    </span>
+                  ),
+                }))}
               />
             </Form.Item>
           </Col>
@@ -432,11 +567,9 @@ const emptyTG = (): TermGrades => ({
 
 function TabPautaTrimestre({
   sections,
-  subjects,
   terms,
 }: {
   sections: Section[];
-  subjects: Subject[];
   terms: Term[];
 }) {
   const [selSection, setSelSection] = useState<string | null>(null);
@@ -444,6 +577,7 @@ function TabPautaTrimestre({
   const [selTerm, setSelTerm] = useState<string | null>(null);
   const [rows, setRows] = useState<TermRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const subjects = subjectsForSection(sections, selSection);
 
   useEffect(() => {
     if (!selSection || !selSubject || !selTerm) {
@@ -453,7 +587,9 @@ function TabPautaTrimestre({
     setLoading(true);
     Promise.all([
       api.get(`/enrollments?sectionId=${selSection}&status=APPROVED`),
-      api.get(`/grades?subjectId=${selSubject}&termId=${selTerm}`),
+      api.get(
+        `/teacher/me/grades?sectionId=${selSection}&subjectId=${selSubject}&termId=${selTerm}`,
+      ),
     ])
       .then(([eRes, gRes]) => {
         const enrollments: any[] = eRes.data?.enrollments ?? [];
@@ -461,7 +597,7 @@ function TabPautaTrimestre({
         const gMap = new Map<string, Map<string, number>>();
         grades.forEach((g: any) => {
           if (!gMap.has(g.studentId)) gMap.set(g.studentId, new Map());
-          gMap.get(g.studentId)!.set(g.type, g.value);
+          gMap.get(g.studentId)!.set(g.type, toGrade(g.value));
         });
         setRows(
           enrollments.map((e) => {
@@ -613,6 +749,7 @@ function TabPautaTrimestre({
                 value={selSection}
                 onChange={(v) => {
                   setSelSection(v);
+                  setSelSubject(null);
                   setRows([]);
                 }}
                 options={sections.map((s) => ({
@@ -719,12 +856,10 @@ interface AnnualRow {
 
 function TabPautaAnual({
   sections,
-  subjects,
   terms,
   user,
 }: {
   sections: Section[];
-  subjects: Subject[];
   terms: Term[];
   user: any;
 }) {
@@ -733,6 +868,7 @@ function TabPautaAnual({
   const [rows, setRows] = useState<AnnualRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const subjects = subjectsForSection(sections, selSection);
 
   const selSectionObj = sections.find((s) => s.id === selSection);
   const selSubjectName = subjects.find((s) => s.id === selSubject)?.name ?? "";
@@ -746,7 +882,9 @@ function TabPautaAnual({
     Promise.all([
       api.get(`/enrollments?sectionId=${selSection}&status=APPROVED`),
       ...terms.map((t) =>
-        api.get(`/grades?subjectId=${selSubject}&termId=${t.id}`),
+        api.get(
+          `/teacher/me/grades?sectionId=${selSection}&subjectId=${selSubject}&termId=${t.id}`,
+        ),
       ),
     ])
       .then(([eRes, ...gradeResponses]) => {
@@ -759,7 +897,7 @@ function TabPautaAnual({
             if (!master.has(g.studentId)) master.set(g.studentId, new Map());
             if (!master.get(g.studentId)!.has(tid))
               master.get(g.studentId)!.set(tid, new Map());
-            master.get(g.studentId)!.get(tid)!.set(g.type, g.value);
+            master.get(g.studentId)!.get(tid)!.set(g.type, toGrade(g.value));
           });
         });
         setRows(
@@ -988,6 +1126,7 @@ function TabPautaAnual({
                 value={selSection}
                 onChange={(v) => {
                   setSelSection(v);
+                  setSelSubject(null);
                   setRows([]);
                 }}
                 options={sections.map((s) => ({
@@ -1090,100 +1229,339 @@ function TabPautaAnual({
   );
 }
 
+// ── Tab: Agendar Avaliações (Fase 10) — dá significado próprio a
+// "Avaliações": quando vai haver o teste, não só que nota se tirou.
+function TabAgendarAvaliacoes({
+  sections,
+  terms,
+  user,
+}: {
+  sections: Section[];
+  terms: Term[];
+  user: any;
+}) {
+  const [selSection, setSelSection] = useState<string | null>(null);
+  const [selSubject, setSelSubject] = useState<string | null>(null);
+  const [selTerm, setSelTerm] = useState<string | null>(null);
+  const [assessments, setAssessments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form] = Form.useForm();
+  const subjects = subjectsForSection(sections, selSection);
+  const filtersComplete = !!selSection && !!selSubject && !!selTerm;
+
+  const load = () => {
+    if (!selSection || !selSubject || !selTerm) {
+      setAssessments([]);
+      return;
+    }
+    setLoading(true);
+    api
+      .get(
+        `/assessments?sectionId=${selSection}&subjectId=${selSubject}&termId=${selTerm}`,
+      )
+      .then((res) => setAssessments(res.data?.assessments ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [selSection, selSubject, selTerm]);
+
+  const handleCreate = async () => {
+    const values = await form.validateFields();
+    setSaving(true);
+    try {
+      await api.post("/assessments", {
+        sectionId: selSection,
+        subjectId: selSubject,
+        termId: selTerm,
+        teacherId: user?.id,
+        type: values.type,
+        date: values.date.format("YYYY-MM-DD"),
+        description: values.description,
+      });
+      message.success("Avaliação agendada com sucesso!");
+      form.resetFields();
+      setModalOpen(false);
+      load();
+    } catch (err: any) {
+      message.error(
+        err.response?.data?.message ?? "Erro ao agendar avaliação.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.delete(`/assessments/${id}`);
+      message.success("Avaliação removida.");
+      load();
+    } catch {
+      message.error("Não foi possível remover a avaliação.");
+    }
+  };
+
+  return (
+    <div>
+      <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+        <Row gutter={[12, 12]} align="bottom">
+          <Col xs={24} sm={8} md={6}>
+            <Form.Item label="Turma" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="Turma"
+                value={selSection}
+                onChange={(v) => {
+                  setSelSection(v);
+                  setSelSubject(null);
+                }}
+                options={sections.map((s) => ({
+                  value: s.id,
+                  label: `${s.name}${s.level?.name ? ` · ${s.level.name}` : ""}`,
+                }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8} md={6}>
+            <Form.Item label="Disciplina" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="Disciplina"
+                value={selSubject}
+                onChange={setSelSubject}
+                disabled={!selSection}
+                options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8} md={6}>
+            <Form.Item label="Trimestre" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="Trimestre"
+                value={selTerm}
+                onChange={setSelTerm}
+                disabled={!selSubject}
+                options={terms.map((t) => ({ value: t.id, label: t.name }))}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={24} md={6}>
+            <Button
+              type="primary"
+              icon={<CalendarOutlined />}
+              disabled={!filtersComplete}
+              onClick={() => setModalOpen(true)}
+              block
+            >
+              Agendar Avaliação
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      {!filtersComplete ? (
+        <Alert
+          message="Seleccione turma, disciplina e trimestre para ver/agendar avaliações."
+          type="info"
+          showIcon
+          style={{ borderRadius: 10 }}
+        />
+      ) : (
+        <Table
+          rowKey="id"
+          loading={loading}
+          dataSource={assessments}
+          columns={[
+            {
+              title: "Tipo",
+              dataIndex: "type",
+              render: (v: string) =>
+                GRADE_TYPES.find((g) => g.value === v)?.label ?? v,
+            },
+            {
+              title: "Data",
+              dataIndex: "date",
+              render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+            },
+            {
+              title: "Descrição",
+              dataIndex: "description",
+              render: (v: string) => v ?? "—",
+            },
+            {
+              title: "Acções",
+              width: 90,
+              align: "center",
+              render: (_: any, r: any) => (
+                <Popconfirm
+                  title="Remover esta avaliação?"
+                  okText="Remover"
+                  cancelText="Cancelar"
+                  onConfirm={() => handleDelete(r.id)}
+                >
+                  <Button size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
+              ),
+            },
+          ]}
+          pagination={{ pageSize: 10 }}
+          locale={{ emptyText: "Sem avaliações agendadas para esta combinação." }}
+        />
+      )}
+
+      <Modal
+        title="Agendar Avaliação"
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleCreate}
+        confirmLoading={saving}
+        okText="Agendar"
+        cancelText="Cancelar"
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            label="Tipo de Avaliação"
+            name="type"
+            rules={[{ required: true, message: "Campo obrigatório" }]}
+          >
+            <Select options={GRADE_TYPES} placeholder="Seleccione o tipo" />
+          </Form.Item>
+          <Form.Item
+            label="Data"
+            name="date"
+            rules={[{ required: true, message: "Campo obrigatório" }]}
+          >
+            <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
+          </Form.Item>
+          <Form.Item label="Descrição (opcional)" name="description">
+            <Input.TextArea
+              rows={2}
+              placeholder="Ex.: matéria dos capítulos 3 e 4"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function TeacherMarks() {
   const location = useLocation();
   const { user } = useAuthStore();
   const [sections, setSections] = useState<Section[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
+  const [currentTermId, setCurrentTermId] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   useEffect(() => {
-    Promise.all([api.get("/sections"), api.get("/subjects"), api.get("/terms")])
-      .then(([s, sub, t]) => {
+    setLoading(true);
+    const sectionsUrl = academicYearId
+      ? `/teacher/me/sections?academicYearId=${academicYearId}`
+      : "/teacher/me/sections";
+    const termsUrl = academicYearId
+      ? `/terms?academicYearId=${academicYearId}`
+      : "/terms";
+    Promise.all([api.get(sectionsUrl), api.get(termsUrl)])
+      .then(([s, t]) => {
         setSections(s.data?.sections ?? []);
-        setSubjects(sub.data?.subjects ?? []);
         setTerms(t.data?.terms ?? []);
+        setCurrentTermId(t.data?.currentTermId ?? undefined);
+        if (!academicYearId && s.data?.academicYearId) {
+          setAcademicYearId(s.data.academicYearId);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
+  }, [academicYearId]);
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Gestão de Notas
-        </Title>
-        <Text type="secondary">
-          ACS (Avaliações Contínuas) · ACP (Avaliações com Prova) · MT (Média
-          Trimestral) · MA (Média Anual)
-        </Text>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            Gestão de Notas
+          </Title>
+          <Text type="secondary">
+            ACS (Avaliações Contínuas) · ACP (Avaliações com Prova) · MT (Média
+            Trimestral) · MA (Média Anual)
+          </Text>
+        </div>
+        <AcademicYearSelect
+          value={academicYearId}
+          onChange={setAcademicYearId}
+        />
       </div>
-      <Tabs
-        defaultActiveKey="lancar"
-        type="card"
-        items={[
-          {
-            key: "lancar",
-            label: (
-              <span>
-                <EditOutlined /> Lançar Notas
-              </span>
-            ),
-            children: (
-              <TabLancar
-                sections={sections}
-                subjects={subjects}
-                terms={terms}
-                user={user}
-                initialSection={location.state?.sectionId ?? null}
-              />
-            ),
-          },
-          {
-            key: "trimestral",
-            label: (
-              <span>
-                <TableOutlined /> Pauta Trimestral
-              </span>
-            ),
-            children: (
-              <TabPautaTrimestre
-                sections={sections}
-                subjects={subjects}
-                terms={terms}
-              />
-            ),
-          },
-          {
-            key: "anual",
-            label: (
-              <span>
-                <DownloadOutlined /> Pauta Anual + Excel
-              </span>
-            ),
-            children: (
-              <TabPautaAnual
-                sections={sections}
-                subjects={subjects}
-                terms={terms}
-                user={user}
-              />
-            ),
-          },
-        ]}
-      />
+      {loading ? (
+        <PageLoader />
+      ) : (
+        <Tabs
+          defaultActiveKey="lancar"
+          type="card"
+          items={[
+            {
+              key: "lancar",
+              label: (
+                <span>
+                  <EditOutlined /> Lançar Notas
+                </span>
+              ),
+              children: (
+                <TabLancar
+                  sections={sections}
+                  terms={terms}
+                  currentTermId={currentTermId}
+                  user={user}
+                  initialSection={location.state?.sectionId ?? null}
+                />
+              ),
+            },
+            {
+              key: "trimestral",
+              label: (
+                <span>
+                  <TableOutlined /> Pauta Trimestral
+                </span>
+              ),
+              children: <TabPautaTrimestre sections={sections} terms={terms} />,
+            },
+            {
+              key: "anual",
+              label: (
+                <span>
+                  <DownloadOutlined /> Pauta Anual + Excel
+                </span>
+              ),
+              children: (
+                <TabPautaAnual sections={sections} terms={terms} user={user} />
+              ),
+            },
+            {
+              key: "avaliacoes",
+              label: (
+                <span>
+                  <CalendarOutlined /> Agendar Avaliações
+                </span>
+              ),
+              children: (
+                <TabAgendarAvaliacoes sections={sections} terms={terms} user={user} />
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -1,15 +1,20 @@
-// pages/student/Schedule.tsx — Horário do próprio aluno
-import { CalendarOutlined, HomeOutlined, UserOutlined } from "@ant-design/icons";
-import { Avatar, Card, Col, Empty, Row, Skeleton, Space, Tag, Typography } from "antd";
+// pages/student/Subjects.tsx — Disciplinas da turma corrente do aluno
+// (Fase 9). Reaproveita o mesmo endpoint que Horário já usa
+// (students/:id/schedule → na prática, as TeacherSection da matrícula
+// activa) — só muda a apresentação, com atalhos para Notas/Horário.
+import { BarChartOutlined, CalendarOutlined, HomeOutlined, UserOutlined } from "@ant-design/icons";
+import { Avatar, Button, Card, Col, Empty, Row, Skeleton, Space, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AcademicYearSelect from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMySchedule } from "@/hooks/useStudentSelf";
 
-export default function StudentSchedule() {
+export default function StudentSubjects() {
+  const navigate = useNavigate();
   const [academicYearId, setAcademicYearId] = useState<string | undefined>();
   const { data, isPending } = useMySchedule(academicYearId);
-  const schedule = (data as any)?.schedule ?? [];
+  const subjects = (data as any)?.schedule ?? [];
   const section = (data as any)?.section;
 
   useEffect(() => {
@@ -30,16 +35,19 @@ export default function StudentSchedule() {
         }}
       >
         <CustomBreadcrumb
-          title="Horário"
-          items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Horário" }]}
+          title="Disciplinas"
+          items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Disciplinas" }]}
         />
         <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
       </div>
 
       {isPending ? (
         <Skeleton active paragraph={{ rows: 6 }} />
-      ) : !schedule.length ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Sem horário disponível" />
+      ) : !subjects.length ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="Sem disciplinas disponíveis"
+        />
       ) : (
         <div>
           {section && (
@@ -51,18 +59,15 @@ export default function StudentSchedule() {
                 border: "none",
               }}
             >
-              <Space>
-                <CalendarOutlined />
-                <Typography.Text>
-                  <strong>{section.name}</strong> · {section.level} · {section.academicYear}
-                </Typography.Text>
-              </Space>
+              <Typography.Text>
+                <strong>{section.name}</strong> · {section.level} · {section.academicYear}
+              </Typography.Text>
             </Card>
           )}
 
           <Row gutter={[12, 12]}>
-            {schedule.map((ts: any) => (
-              <Col key={`${ts.teacherId}-${ts.subjectId}`} xs={24} sm={12}>
+            {subjects.map((ts: any) => (
+              <Col key={`${ts.teacherId}-${ts.subjectId}`} xs={24} sm={12} md={8}>
                 <Card size="small">
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <Avatar
@@ -79,8 +84,30 @@ export default function StudentSchedule() {
                         {ts.teacher?.employee?.user?.lastName}
                       </Typography.Text>
                     </div>
-                    <Tag style={{ marginLeft: "auto" }}>{ts.subject?.code}</Tag>
+                    {ts.subject?.code && (
+                      <Tag style={{ marginLeft: "auto" }}>{ts.subject.code}</Tag>
+                    )}
                   </div>
+                  <Space style={{ marginTop: 12 }}>
+                    <Button
+                      size="small"
+                      icon={<BarChartOutlined />}
+                      onClick={() =>
+                        navigate("/student/boletim", {
+                          state: { subjectName: ts.subject?.name },
+                        })
+                      }
+                    >
+                      Notas
+                    </Button>
+                    <Button
+                      size="small"
+                      icon={<CalendarOutlined />}
+                      onClick={() => navigate("/student/horario")}
+                    >
+                      Horário
+                    </Button>
+                  </Space>
                 </Card>
               </Col>
             ))}

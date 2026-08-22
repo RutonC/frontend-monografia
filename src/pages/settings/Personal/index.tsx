@@ -49,6 +49,9 @@ export default function DefinicoesPessoais() {
   const { user, setUser, getCurrentUser } = useAuthStore();
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
+  // O Aluno só pode alterar Foto e Password — os restantes dados
+  // (nome, contacto, etc.) são geridos pela Secretaria/Admin.
+  const isStudent = user?.type === "STUDENT";
 
   useEffect(() => {
     if (!user) return;
@@ -69,6 +72,7 @@ export default function DefinicoesPessoais() {
         formData.append("file", file);
         formData.append("category", "avatars");
         const res = await axiosInstance.post("/assets/upload", formData);
+        console.log(res);
         return res.data.url as string;
       },
     },
@@ -232,17 +236,33 @@ export default function DefinicoesPessoais() {
                 </ImgCrop>
               </Space>
 
+              {isStudent && (
+                <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 12 }}>
+                  Os teus dados pessoais são geridos pela Secretaria/Administração — só podes alterar a foto e a password.
+                </Text>
+              )}
               <Row gutter={16}>
                 <Col span={12}>
-                  <Input.Text label="Nome" name="firstName" required />
+                  <Input.Text
+                    label="Nome"
+                    name="firstName"
+                    required
+                    disabled={isStudent}
+                  />
                 </Col>
                 <Col span={12}>
-                  <Input.Text label="Apelido" name="lastName" required />
+                  <Input.Text
+                    label="Apelido"
+                    name="lastName"
+                    required
+                    disabled={isStudent}
+                  />
                 </Col>
                 <Col span={12}>
                   <Input.Select
                     label="Género"
                     name="gender"
+                    disabled={isStudent}
                     options={[
                       { label: "Masculino", value: "MALE" },
                       { label: "Feminino", value: "FEMALE" },
@@ -251,10 +271,18 @@ export default function DefinicoesPessoais() {
                   />
                 </Col>
                 <Col span={12}>
-                  <Input.Text label="Telefone" name="phoneNumber" />
+                  <Input.Text
+                    label="Telefone"
+                    name="phoneNumber"
+                    disabled={isStudent}
+                  />
                 </Col>
                 <Col span={24}>
-                  <Input.Text label="Morada" name="address" />
+                  <Input.Text
+                    label="Morada"
+                    name="address"
+                    disabled={isStudent}
+                  />
                 </Col>
               </Row>
 
@@ -272,6 +300,7 @@ export default function DefinicoesPessoais() {
                 type="primary"
                 htmlType="submit"
                 loading={savingProfile}
+                disabled={isStudent}
                 style={{ marginTop: 16 }}
               >
                 Guardar Perfil

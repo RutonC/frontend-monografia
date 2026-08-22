@@ -7,10 +7,11 @@ import {
 } from "@ant-design/icons";
 import type { ColumnConfig, LineConfig } from "@ant-design/plots";
 import { Column, Line } from "@ant-design/plots";
-import { Avatar, Badge, Card, Col, Row, Spin, Tag, Typography } from "antd";
+import { Avatar, Badge, Card, Col, Row, Tag, Typography } from "antd";
 import { BiCalendar, BiTime } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
 import NewsFeed from "../../components/NewsFeed";
+import PageLoader from "../../components/PageLoader";
 import { useFetch } from "../../utils/fetch";
 
 const { Title, Text } = Typography;
@@ -97,11 +98,7 @@ export default function TeacherDashboard() {
   );
 
   if (isPending) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   const totals = data?.totals ?? {

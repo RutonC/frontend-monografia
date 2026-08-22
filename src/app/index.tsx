@@ -1,7 +1,13 @@
 import {
+  BellOutlined,
+  CalendarOutlined,
   DashboardOutlined,
+  FileTextOutlined,
+  LockOutlined,
   NotificationOutlined,
   SafetyCertificateOutlined,
+  ScheduleOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { ConfigProvider, Layout } from "antd";
 import { useEffect } from "react";
@@ -47,6 +53,7 @@ import RolesPermissoes from "../pages/admin/Roles";
 import Horario from "../pages/admin/Schedule";
 import Students from "../pages/admin/students";
 import AddNewStudent from "../pages/admin/students/add-new";
+import GradeExceptions from "../pages/admin/GradeExceptions";
 import EditStudent from "../pages/admin/students/edit";
 import StudentProfile from "../pages/admin/students/Profile";
 import NovaInscricao from "../pages/admin/Subscription";
@@ -54,6 +61,7 @@ import ListaInscricoes from "../pages/admin/Subscription/List";
 import ActualizarInscricao from "../pages/admin/Subscription/Update";
 import Utilizadores from "../pages/admin/User";
 import AnoLectivo from "../pages/settings/AcademicYear";
+import Trimestres from "../pages/settings/Term";
 
 // ── Teacher pages — nomes conforme as tuas importações ───────────
 import TeacherTurmas from "../pages/teacher/Class";
@@ -75,8 +83,10 @@ import GuardianLayout from "../pages/guardian/Layout";
 import GuardianStudentDetail from "../pages/guardian/StudentDetail";
 
 import AppLayout from "../components/AppLayout";
+import CalendarPage from "../pages/admin/Calendar";
 import Noticias from "../pages/admin/News";
-import Reports from "../pages/admin/reports";
+import NotificationsPage from "../pages/admin/Notifications";
+import Reports from "../pages/admin/Reports";
 import ChangePasswordForced from "../pages/auth/ChangePassword";
 import Login from "../pages/auth/login";
 import FinanceDashboard from "../pages/finance/Dashboard";
@@ -89,8 +99,11 @@ import EscolaSettings from "../pages/settings/School";
 import StudentAttendance from "../pages/student/Attendance";
 import StudentDashboard from "../pages/student/Dashboard";
 import StudentInvoices from "../pages/student/Invoices";
+import StudentAssessments from "../pages/student/Assessments";
+import StudentDocuments from "../pages/student/Documents";
 import StudentReportCard from "../pages/student/ReportCard";
 import StudentSchedule from "../pages/student/Schedule";
+import StudentSubjects from "../pages/student/Subjects";
 import { useAuthStore } from "../store/authStore";
 import { getItem } from "../utils/getItem";
 import theme from "../utils/theme";
@@ -177,6 +190,12 @@ function useAdminMenuItems() {
         <BiRadioCircleMarked />,
         <PautaGlobal />,
       ),
+      getItem(
+        "Excepções de Trimestre",
+        "/notas/excepcoes",
+        <BiRadioCircleMarked />,
+        <GradeExceptions />,
+      ),
     ]),
     getItem(
       "Assiduidade",
@@ -232,6 +251,12 @@ function useAdminMenuItems() {
         "/ano-lectivo",
         <BiRadioCircleMarked />,
         <AnoLectivo />,
+      ),
+      getItem(
+        "Trimestres",
+        "/trimestres",
+        <BiRadioCircleMarked />,
+        <Trimestres />,
       ),
     ]),
   ];
@@ -343,6 +368,12 @@ function useSecretaryMenuItems() {
       "/secretary/pagamentos-por-confirmar",
       <BiCreditCardAlt size={20} />,
       <PendingConfirmations />,
+    ),
+    getItem(
+      "Excepções de Trimestre",
+      "/secretary/excepcoes-notas",
+      <LockOutlined style={{ fontSize: 20 }} />,
+      <GradeExceptions />,
     ),
     getItem(
       "Notícias",
@@ -626,6 +657,11 @@ function SecretaryLayout() {
       <Routes>
         <Route index element={wrap(<SecretaryDashboard />)} />
         <Route path="alunos" element={wrap(<Students />)} />
+        <Route
+          path="alunos/adicionar-novo-aluno"
+          element={wrap(<AddNewStudent />)}
+        />
+        <Route path="alunos/editar/:id" element={wrap(<EditStudent />)} />
         <Route path="encarregados" element={wrap(<Encarregados />)} />
         <Route path="inscricao/nova" element={wrap(<NovaInscricao />)} />
         <Route
@@ -636,6 +672,10 @@ function SecretaryLayout() {
         <Route
           path="pagamentos-por-confirmar"
           element={wrap(<PendingConfirmations />)}
+        />
+        <Route
+          path="excepcoes-notas"
+          element={wrap(<GradeExceptions />)}
         />
         <Route path="noticias" element={wrap(<Noticias />)} />
         <Route path="eventos" element={wrap(<Eventos readOnly />)} />
@@ -696,10 +736,22 @@ function useStudentMenuItems() {
   return [
     getItem("Painel", "/student", <DashboardOutlined />, <StudentDashboard />),
     getItem(
+      "Disciplinas",
+      "/student/disciplinas",
+      <BiBookContent size={20} />,
+      <StudentSubjects />,
+    ),
+    getItem(
       "Boletim",
       "/student/boletim",
       <BiBarChart size={20} />,
       <StudentReportCard />,
+    ),
+    getItem(
+      "Avaliações",
+      "/student/avaliacoes",
+      <ScheduleOutlined />,
+      <StudentAssessments />,
     ),
     getItem(
       "Assiduidade",
@@ -720,6 +772,12 @@ function useStudentMenuItems() {
       <StudentInvoices />,
     ),
     getItem(
+      "Documentos",
+      "/student/documentos",
+      <FileTextOutlined />,
+      <StudentDocuments />,
+    ),
+    getItem(
       "Notícias",
       "/student/noticias",
       <NotificationOutlined />,
@@ -731,17 +789,47 @@ function useStudentMenuItems() {
       <MdEventNote size={20} />,
       <Eventos readOnly />,
     ),
+    getItem(
+      "Calendário",
+      "/student/calendario",
+      <CalendarOutlined />,
+      <CalendarPage />,
+    ),
+    getItem(
+      "Notificações",
+      "/student/notificacoes",
+      <BellOutlined />,
+      <NotificationsPage />,
+    ),
+    getItem(
+      "Meu Perfil",
+      "/student/definicoes-pessoais",
+      <UserOutlined />,
+      <DefinicoesPessoais />,
+    ),
   ];
 }
 
 function getStudentSelectedKey(pathname: string): string {
+  if (pathname.startsWith("/student/disciplinas"))
+    return "/student/disciplinas";
   if (pathname.startsWith("/student/boletim")) return "/student/boletim";
+  if (pathname.startsWith("/student/avaliacoes"))
+    return "/student/avaliacoes";
   if (pathname.startsWith("/student/assiduidade"))
     return "/student/assiduidade";
   if (pathname.startsWith("/student/horario")) return "/student/horario";
   if (pathname.startsWith("/student/propinas")) return "/student/propinas";
+  if (pathname.startsWith("/student/documentos"))
+    return "/student/documentos";
   if (pathname.startsWith("/student/noticias")) return "/student/noticias";
   if (pathname.startsWith("/student/eventos")) return "/student/eventos";
+  if (pathname.startsWith("/student/calendario"))
+    return "/student/calendario";
+  if (pathname.startsWith("/student/notificacoes"))
+    return "/student/notificacoes";
+  if (pathname.startsWith("/student/definicoes-pessoais"))
+    return "/student/definicoes-pessoais";
   return "/student";
 }
 
@@ -760,12 +848,17 @@ function StudentLayout() {
     <AppLayout menuItems={menuItems} selectedKey={selectedKey}>
       <Routes>
         <Route index element={wrap(<StudentDashboard />)} />
+        <Route path="disciplinas" element={wrap(<StudentSubjects />)} />
         <Route path="boletim" element={wrap(<StudentReportCard />)} />
+        <Route path="avaliacoes" element={wrap(<StudentAssessments />)} />
         <Route path="assiduidade" element={wrap(<StudentAttendance />)} />
         <Route path="horario" element={wrap(<StudentSchedule />)} />
         <Route path="propinas" element={wrap(<StudentInvoices />)} />
+        <Route path="documentos" element={wrap(<StudentDocuments />)} />
         <Route path="noticias" element={wrap(<Noticias readOnly />)} />
         <Route path="eventos" element={wrap(<Eventos readOnly />)} />
+        <Route path="calendario" element={wrap(<CalendarPage />)} />
+        <Route path="notificacoes" element={wrap(<NotificationsPage />)} />
         <Route
           path="definicoes-pessoais"
           element={wrap(<DefinicoesPessoais />)}
@@ -846,6 +939,26 @@ export default function App() {
             <RoleRoute allowed={["GUARDIAN"]}>
               <GuardianLayout>
                 <Mensagens />
+              </GuardianLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/guardian/calendario"
+          element={
+            <RoleRoute allowed={["GUARDIAN"]}>
+              <GuardianLayout>
+                <CalendarPage />
+              </GuardianLayout>
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/guardian/notificacoes"
+          element={
+            <RoleRoute allowed={["GUARDIAN"]}>
+              <GuardianLayout>
+                <NotificationsPage />
               </GuardianLayout>
             </RoleRoute>
           }

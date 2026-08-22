@@ -16,7 +16,6 @@ import {
   Form,
   Row,
   Select,
-  Spin,
   Table,
   Tabs,
   Tag,
@@ -24,6 +23,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useRef, useState } from "react";
+import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
 import type { StudentFichaRow, TermGrades } from "../../../utils/fichaExcel";
 import {
@@ -588,11 +588,7 @@ function TabFichaAnual({
         />
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <Spin size="large" />
-        </div>
-      )}
+      {loading && <PageLoader padding={60} />}
 
       {rows.length > 0 && !loading && (
         <>
@@ -1040,11 +1036,7 @@ function TabPautaTrimestral({
         />
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <Spin size="large" />
-        </div>
-      )}
+      {loading && <PageLoader padding={60} />}
 
       {rows.length > 0 && !loading && (
         <>
@@ -1365,11 +1357,7 @@ function TabBoletimAluno({
         </Row>
       </Card>
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <Spin size="large" />
-        </div>
-      )}
+      {loading && <PageLoader padding={60} />}
 
       {!loading && annualRows.length === 0 && (
         <Alert
@@ -1422,11 +1410,7 @@ export default function GradeReport() {
   const { years, levels, subjects, loading } = useBaseData();
 
   if (loading) {
-    return (
-      <div style={{ textAlign: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

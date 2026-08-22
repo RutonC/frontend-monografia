@@ -1,5 +1,11 @@
 // pages/teacher/Presence.tsx
-import { CheckOutlined, CloseOutlined, SaveOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  CloseOutlined,
+  EditOutlined,
+  FileProtectOutlined,
+  SaveOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
   Avatar,
@@ -8,10 +14,12 @@ import {
   Col,
   DatePicker,
   Form,
+  Popconfirm,
   Row,
   Select,
-  Spin,
+  Space,
   Table,
+  Tabs,
   Tag,
   Typography,
   message,
@@ -20,6 +28,8 @@ import type { ColumnsType } from "antd/es/table";
 import dayjs, { type Dayjs } from "dayjs";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import AcademicYearSelect from "../../components/AcademicYearSelect";
+import PageLoader from "../../components/PageLoader";
 import { api, useAuthStore } from "../../store/authStore";
 
 const { Title, Text } = Typography;
@@ -33,18 +43,27 @@ const STATUS_OPTIONS = [
   { value: "JUSTIFIED", label: "Justificado", color: "default" },
 ] as const;
 
-interface Section {
-  id: string;
-  name: string;
-  level?: { name: string };
-}
 interface Subject {
   id: string;
   name: string;
 }
+interface Section {
+  id: string;
+  name: string;
+  level?: { name: string };
+  teacherSections?: { subject: Subject }[];
+}
 interface Term {
   id: string;
   name: string;
+}
+
+function subjectsForSection(
+  sections: Section[],
+  sectionId: string | null,
+): Subject[] {
+  const section = sections.find((s) => s.id === sectionId);
+  return section?.teacherSections?.map((ts) => ts.subject).filter(Boolean) ?? [];
 }
 
 interface AttRow {
@@ -63,13 +82,168 @@ function statusTag(s: AttStatus) {
   return <Tag color={opt?.color ?? "default"}>{opt?.label ?? s}</Tag>;
 }
 
+// mesma ordem de dayjs().day() (0=domingo) — espelha
+// DAY_OF_WEEK_BY_JS_DAY em attendanceSchedule.service.ts
+const DAY_OF_WEEK_BY_DAYJS_DAY = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
+
+interface JustificationRow {
+  id: string;
+  reason: string;
+  proofUrl?: string;
+  createdAt: string;
+  attendance: {
+    date: string;
+    subject?: { name: string };
+    student?: { user?: { firstName: string; lastName: string } };
+  };
+}
+
+// Lista de pedidos de correcção pendentes das aulas do próprio professor
+// (Fase 5) — aprovar desbloqueia a edição do registo em Attendance.
+function TabJustificacoes() {
+  const [rows, setRows] = useState<JustificationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api
+      .get("/attendance/justification-requests?status=PENDING")
+      .then((res) => setRows(res.data?.justifications ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleReview = async (id: string, status: "APPROVED" | "REJECTED") => {
+    setReviewingId(id);
+    try {
+      await api.patch(`/attendance/justification-requests/${id}/review`, {
+        status,
+      });
+      message.success(
+        status === "APPROVED" ? "Pedido aprovado." : "Pedido rejeitado.",
+      );
+      load();
+    } catch (err: any) {
+      message.error(
+        err.response?.data?.message ?? "Erro ao rever o pedido.",
+      );
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const columns: ColumnsType<JustificationRow> = [
+    {
+      title: "Aluno",
+      key: "student",
+      render: (_, r) => {
+        const u = r.attendance?.student?.user;
+        return u ? `${u.firstName} ${u.lastName}` : "—";
+      },
+    },
+    {
+      title: "Disciplina",
+      key: "subject",
+      render: (_, r) => r.attendance?.subject?.name ?? "—",
+    },
+    {
+      title: "Data do registo",
+      key: "date",
+      render: (_, r) =>
+        r.attendance?.date ? dayjs(r.attendance.date).format("DD/MM/YYYY") : "—",
+    },
+    { title: "Motivo", dataIndex: "reason" },
+    {
+      title: "Comprovativo",
+      key: "proof",
+      render: (_, r) =>
+        r.proofUrl ? (
+          <a href={r.proofUrl} target="_blank" rel="noreferrer">
+            Ver
+          </a>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      title: "Pedido em",
+      key: "createdAt",
+      render: (_, r) => dayjs(r.createdAt).format("DD/MM/YYYY HH:mm"),
+    },
+    {
+      title: "Acções",
+      key: "actions",
+      render: (_, r) => (
+        <Space>
+          <Popconfirm
+            title="Aprovar este pedido?"
+            okText="Aprovar"
+            cancelText="Cancelar"
+            onConfirm={() => handleReview(r.id, "APPROVED")}
+          >
+            <Button
+              size="small"
+              type="primary"
+              icon={<CheckOutlined />}
+              loading={reviewingId === r.id}
+            >
+              Aprovar
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Rejeitar este pedido?"
+            okText="Rejeitar"
+            cancelText="Cancelar"
+            onConfirm={() => handleReview(r.id, "REJECTED")}
+          >
+            <Button
+              size="small"
+              danger
+              icon={<CloseOutlined />}
+              loading={reviewingId === r.id}
+            >
+              Rejeitar
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Card style={{ borderRadius: 12 }}>
+      <Table
+        dataSource={rows}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 20 }}
+        locale={{ emptyText: "Sem pedidos pendentes." }}
+      />
+    </Card>
+  );
+}
+
 export default function TeacherPresence() {
   const location = useLocation();
   const { user } = useAuthStore();
 
   const [sections, setSections] = useState<Section[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   // filtros obrigatórios (o bulk attendance exige todos os 4)
   const [selSection, setSelSection] = useState<string | null>(
@@ -83,22 +257,48 @@ export default function TeacherPresence() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [booting, setBooting] = useState(true);
+  const [schedules, setSchedules] = useState<
+    { sectionId: string; subjectId: string; dayOfWeek: string }[]
+  >([]);
+
+  const subjects = subjectsForSection(sections, selSection);
+
+  // Dias-da-semana em que a turma+disciplina seleccionada realmente tem
+  // aula agendada — só esses dias ficam seleccionáveis no DatePicker
+  // (o backend já rejeita os outros; isto só evita o professor escolher
+  // uma data que sabe de antemão que vai ser recusada).
+  const scheduledDays = new Set(
+    schedules
+      .filter((s) => s.sectionId === selSection && s.subjectId === selSubject)
+      .map((s) => s.dayOfWeek),
+  );
 
   const presentCount = rows.filter((r) => r.status === "PRESENT").length;
   const absentCount = rows.filter((r) => r.status === "ABSENT").length;
   const otherCount = rows.length - presentCount - absentCount;
 
-  // ── carrega dados base ─────────────────────────────────────────
+  // ── carrega dados base (turmas do professor + trimestres do ano) ─
   useEffect(() => {
-    Promise.all([api.get("/sections"), api.get("/subjects"), api.get("/terms")])
-      .then(([s, sub, t]) => {
+    setBooting(true);
+    const yearQuery = academicYearId ? `?academicYearId=${academicYearId}` : "";
+    Promise.all([
+      api.get(`/teacher/me/sections${yearQuery}`),
+      api.get(`/terms${yearQuery}`),
+      api.get(`/teacher/me/schedule${yearQuery}`),
+    ])
+      .then(([s, t, sch]) => {
         setSections(s.data?.sections ?? []);
-        setSubjects(sub.data?.subjects ?? []);
         setTerms(t.data?.terms ?? t.data?.data ?? []);
+        setSchedules(sch.data?.schedules ?? []);
+        // Primeira carga (sem ano escolhido) — adopta o ano que o
+        // backend usou por defeito (o activo) para pré-seleccionar o filtro.
+        if (!academicYearId && s.data?.academicYearId) {
+          setAcademicYearId(s.data.academicYearId);
+        }
       })
       .catch(console.error)
       .finally(() => setBooting(false));
-  }, []);
+  }, [academicYearId]);
 
   // ── carrega alunos + assiduidade existente ──────────────────────
   useEffect(() => {
@@ -108,12 +308,15 @@ export default function TeacherPresence() {
     }
     setLoading(true);
     const dateStr = selDate.format("YYYY-MM-DD");
+    const subjectQuery = selSubject ? `&subjectId=${selSubject}` : "";
 
     Promise.all([
       // enrollments da turma — devolve { enrollments: [] }
       api.get(`/enrollments?sectionId=${selSection}&status=APPROVED`),
       // presenças já registadas para este dia/turma — devolve { attendance: [] }
-      api.get(`/attendance?sectionId=${selSection}&date=${dateStr}`),
+      api.get(
+        `/teacher/me/attendance?sectionId=${selSection}&date=${dateStr}${subjectQuery}`,
+      ),
     ])
       .then(([enrollRes, attRes]) => {
         const enrollments: any[] = enrollRes.data?.enrollments ?? [];
@@ -140,7 +343,7 @@ export default function TeacherPresence() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [selSection, selDate]);
+  }, [selSection, selSubject, selDate]);
 
   const handleStatusChange = (studentId: string, status: AttStatus) => {
     setRows((prev) =>
@@ -258,27 +461,47 @@ export default function TeacherPresence() {
     },
   ];
 
-  if (booting) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   const filtersComplete = !!selSection && !!selSubject && !!selTerm;
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Registo de Assiduidade
-        </Title>
-        <Text type="secondary">
-          Marque a presença dos alunos por turma, disciplina e data.
-        </Text>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            Registo de Assiduidade
+          </Title>
+          <Text type="secondary">
+            Marque a presença dos alunos por turma, disciplina e data.
+          </Text>
+        </div>
+        <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
       </div>
 
+      <Tabs
+        defaultActiveKey="registar"
+        type="card"
+        items={[
+          {
+            key: "registar",
+            label: (
+              <span>
+                <EditOutlined /> Registar
+              </span>
+            ),
+            children:
+              booting ? (
+                <PageLoader />
+              ) : (
+                <>
       {/* Filtros */}
       <Card style={{ borderRadius: 12, marginBottom: 20 }}>
         <Row gutter={[16, 12]} align="bottom">
@@ -289,6 +512,7 @@ export default function TeacherPresence() {
                 value={selSection}
                 onChange={(v) => {
                   setSelSection(v);
+                  setSelSubject(null);
                   setRows([]);
                 }}
                 showSearch
@@ -331,7 +555,11 @@ export default function TeacherPresence() {
                 onChange={(d) => d && setSelDate(d)}
                 style={{ width: "100%" }}
                 format="DD/MM/YYYY"
-                disabledDate={(d) => d.isAfter(dayjs(), "day")}
+                disabledDate={(d) => {
+                  if (d.isAfter(dayjs(), "day")) return true;
+                  if (!selSubject) return false;
+                  return !scheduledDays.has(DAY_OF_WEEK_BY_DAYJS_DAY[d.day()]);
+                }}
               />
             </Form.Item>
           </Col>
@@ -446,6 +674,20 @@ export default function TeacherPresence() {
           </Card>
         </>
       )}
+                </>
+              ),
+          },
+          {
+            key: "justificacoes",
+            label: (
+              <span>
+                <FileProtectOutlined /> Pedidos de Justificação
+              </span>
+            ),
+            children: <TabJustificacoes />,
+          },
+        ]}
+      />
     </div>
   );
 }

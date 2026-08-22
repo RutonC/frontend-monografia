@@ -1,4 +1,7 @@
 // pages/guardian/StudentDetail.tsx
+import AcademicYearSelect, {
+  useActiveAcademicYearId,
+} from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import {
   useStudentAttendance,
@@ -12,6 +15,8 @@ import {
   AlertOutlined,
   CalendarOutlined,
   CopyOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
   HomeOutlined,
   LockOutlined,
   UploadOutlined,
@@ -27,6 +32,7 @@ import {
   Form,
   Input as AntInput,
   InputNumber,
+  List,
   message,
   Modal,
   Progress,
@@ -40,15 +46,17 @@ import {
   Typography,
   Upload,
 } from "antd";
-import { useState } from "react";
+import dayjs from "dayjs";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosInstance from "@/utils/axiosInstance";
 
 const GRADE_TYPE_LABEL: Record<string, string> = {
-  AC1: "Avaliação 1",
-  AC2: "Avaliação 2",
-  EXAM: "Exame",
-  RETAKE: "Recurso",
+  ACS1: "1ª Aval. Contínua",
+  ACS2: "2ª Aval. Contínua",
+  ACS3: "3ª Aval. Contínua",
+  ACP1: "1ª Aval. c/ Prova",
+  ACP2: "2ª Aval. c/ Prova",
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -147,9 +155,45 @@ function TermReportCard({
   );
 }
 
+function GradeChip({ grade }: { grade: any }) {
+  return (
+    <Card
+      size="small"
+      style={{
+        background: "var(--color-background-secondary)",
+        border: "none",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 500,
+          color:
+            grade.value >= 10
+              ? "var(--color-text-success)"
+              : "var(--color-text-danger)",
+        }}
+      >
+        {grade.value.toFixed(1)}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+        {GRADE_TYPE_LABEL[grade.type] ?? grade.type}
+      </div>
+    </Card>
+  );
+}
+
 // ── Tab: Notas ────────────────────────────────────────────────────
-function GradesTab({ studentId }: { studentId: string }) {
-  const { data, isPending } = useStudentGrades(studentId);
+function GradesTab({
+  studentId,
+  academicYearId,
+}: {
+  studentId: string;
+  academicYearId?: string;
+}) {
+  const [selectedSubject, setSelectedSubject] = useState<string | undefined>();
+  const { data, isPending } = useStudentGrades(studentId, undefined, academicYearId);
 
   if (isPending) return <Skeleton active paragraph={{ rows: 6 }} />;
 
@@ -200,8 +244,33 @@ function GradesTab({ studentId }: { studentId: string }) {
     if (g.termId && g.term?.name) terms.set(g.termId, g.term.name);
   });
 
+  const subjectOptions = Array.from(
+    new Set(
+      Object.values(grouped as Record<string, Record<string, any[]>>).flatMap(
+        (s) => Object.keys(s),
+      ),
+    ),
+  ).sort();
+
   return (
     <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 12,
+        }}
+      >
+        <Select
+          value={selectedSubject}
+          onChange={setSelectedSubject}
+          allowClear
+          placeholder="Todas as disciplinas"
+          style={{ minWidth: 200 }}
+          options={subjectOptions.map((s) => ({ value: s, label: s }))}
+        />
+      </div>
+
       {Array.from(terms.entries()).map(([termId, termName]) => (
         <TermReportCard
           key={termId}
@@ -211,66 +280,319 @@ function GradesTab({ studentId }: { studentId: string }) {
         />
       ))}
 
-      {Object.entries(grouped).map(([term, subjects]) => (
-        <Card key={term} title={term} size="small" style={{ marginBottom: 16 }}>
-          {Object.entries(subjects as Record<string, any[]>).map(
-            ([subject, grades]) => (
-              <div key={subject} style={{ marginBottom: 16 }}>
-                <Typography.Text
-                  strong
-                  style={{ display: "block", marginBottom: 8 }}
-                >
-                  {subject}
-                </Typography.Text>
-                <Row gutter={[8, 8]}>
-                  {grades.map((g: any) => (
-                    <Col key={g.id} xs={12} sm={6}>
-                      <Card
-                        size="small"
-                        style={{
-                          background: "var(--color-background-secondary)",
-                          border: "none",
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 22,
-                            fontWeight: 500,
-                            color:
-                              g.value >= 10
-                                ? "var(--color-text-success)"
-                                : "var(--color-text-danger)",
-                          }}
-                        >
-                          {g.value.toFixed(1)}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "var(--color-text-secondary)",
-                          }}
-                        >
-                          {GRADE_TYPE_LABEL[g.type] ?? g.type}
-                        </div>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </div>
-            ),
-          )}
+      {selectedSubject ? (
+        // Uma disciplina — lado a lado por trimestre, para acompanhar a
+        // evolução ao longo do ano.
+        <Card
+          title={`Evolução — ${selectedSubject}`}
+          size="small"
+          style={{ marginBottom: 16 }}
+        >
+          <Row gutter={[12, 12]}>
+            {Object.entries(grouped).map(([term, subjects]) => {
+              const grades = (subjects as Record<string, any[]>)[
+                selectedSubject
+              ];
+              return (
+                <Col key={term} xs={24} sm={12} md={8}>
+                  <Card size="small" title={term}>
+                    {!grades?.length ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        Sem notas lançadas.
+                      </Typography.Text>
+                    ) : (
+                      <Row gutter={[8, 8]}>
+                        {grades.map((g: any) => (
+                          <Col key={g.id} xs={12}>
+                            <GradeChip grade={g} />
+                          </Col>
+                        ))}
+                      </Row>
+                    )}
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
         </Card>
-      ))}
+      ) : (
+        Object.entries(grouped).map(([term, subjects]) => (
+          <Card key={term} title={term} size="small" style={{ marginBottom: 16 }}>
+            {Object.entries(subjects as Record<string, any[]>).map(
+              ([subject, grades]) => (
+                <div key={subject} style={{ marginBottom: 16 }}>
+                  <Typography.Text
+                    strong
+                    style={{ display: "block", marginBottom: 8 }}
+                  >
+                    {subject}
+                  </Typography.Text>
+                  <Row gutter={[8, 8]}>
+                    {grades.map((g: any) => (
+                      <Col key={g.id} xs={12} sm={6}>
+                        <GradeChip grade={g} />
+                      </Col>
+                    ))}
+                  </Row>
+                </div>
+              ),
+            )}
+          </Card>
+        ))
+      )}
     </div>
   );
 }
 
+// ── Tab: Desempenho (Fase 8) — média actual + taxa de presença por
+// disciplina, lado a lado; reaproveita o boletim anual já calculado no
+// backend (computeAnnualReportCard) e as estatísticas de assiduidade já
+// usadas em AttendanceTab, sem nenhum endpoint novo.
+function PerformanceTab({
+  studentId,
+  academicYearId,
+}: {
+  studentId: string;
+  academicYearId?: string;
+}) {
+  const { data: cardData, isPending: cardPending } = useFetch<{
+    reportCard?: any;
+    blocked?: boolean;
+    reason?: string;
+    overdueTotal?: number;
+  }>(
+    ["report-card-annual", studentId, academicYearId ?? "none"],
+    `students/${studentId}/report-card?academicYearId=${academicYearId}`,
+    { enabled: !!academicYearId },
+  );
+  const { data: attData, isPending: attPending } = useStudentAttendance(
+    studentId,
+    undefined,
+    academicYearId,
+  );
+
+  if (cardPending || attPending)
+    return <Skeleton active paragraph={{ rows: 6 }} />;
+
+  if (cardData?.blocked) {
+    return (
+      <Card
+        style={{
+          background: "var(--color-background-danger)",
+          border: "0.5px solid var(--color-border-danger)",
+          textAlign: "center",
+        }}
+      >
+        <LockOutlined
+          style={{ fontSize: 28, color: "var(--color-text-danger)" }}
+        />
+        <Typography.Title
+          level={5}
+          style={{ color: "var(--color-text-danger)", marginTop: 12 }}
+        >
+          Desempenho bloqueado por mensalidades em atraso
+        </Typography.Title>
+        <Typography.Text style={{ display: "block", marginBottom: 4 }}>
+          {cardData.reason}
+        </Typography.Text>
+        {typeof cardData.overdueTotal === "number" && (
+          <Typography.Text strong>
+            Total em atraso: MZN {cardData.overdueTotal.toFixed(2)}
+          </Typography.Text>
+        )}
+      </Card>
+    );
+  }
+
+  const subjects = cardData?.reportCard?.subjects ?? [];
+  const statsBySubject = new Map(
+    (attData?.stats ?? []).map((s: any) => [s.subject, s]),
+  );
+
+  if (!subjects.length)
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="Sem dados de desempenho para este ano lectivo"
+      />
+    );
+
+  return (
+    <div>
+      <Typography.Text
+        type="secondary"
+        style={{ fontSize: 12, display: "block", marginBottom: 12 }}
+      >
+        Média actual e taxa de presença por disciplina, no ano lectivo em
+        curso.
+      </Typography.Text>
+      <Row gutter={[12, 12]}>
+        {subjects.map((s: any) => {
+          const att = statsBySubject.get(s.subjectName) as any;
+          const presenceRate = att?.presenceRate ?? 0;
+          return (
+            <Col key={s.subjectId} xs={24} sm={12} md={8}>
+              <Card size="small">
+                <Typography.Text
+                  strong
+                  style={{ fontSize: 13, display: "block", marginBottom: 8 }}
+                >
+                  {s.subjectName}
+                </Typography.Text>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 6,
+                  }}
+                >
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    Média actual
+                  </Typography.Text>
+                  <Typography.Text
+                    strong
+                    style={{
+                      fontSize: 18,
+                      color: s.passed
+                        ? "var(--color-text-success)"
+                        : "var(--color-text-danger)",
+                    }}
+                  >
+                    {s.average.toFixed(1)}
+                  </Typography.Text>
+                </div>
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                  Presença{att ? ` — ${att.present}/${att.total}` : ""}
+                </Typography.Text>
+                <Progress
+                  percent={presenceRate}
+                  size="small"
+                  strokeColor={
+                    presenceRate >= 75
+                      ? "#059669"
+                      : presenceRate >= 50
+                        ? "#d97706"
+                        : "#dc2626"
+                  }
+                  style={{ margin: "4px 0 0" }}
+                />
+              </Card>
+            </Col>
+          );
+        })}
+      </Row>
+    </div>
+  );
+}
+
+// ── Modal: Pedir correcção de um registo de assiduidade (Fase 5) ────
+function JustifyAttendanceModal({
+  studentId,
+  attendanceId,
+  open,
+  onClose,
+}: {
+  studentId: string;
+  attendanceId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [form] = Form.useForm();
+  const [proofUrl, setProofUrl] = useState<string | undefined>();
+  const [uploading, setUploading] = useState(false);
+
+  const { mutateAsync, isPending } = useMutationPost(
+    ["guardian", "attendance", studentId],
+    `attendance/${attendanceId}/justification-requests`,
+  );
+
+  const handleUpload = async ({ file }: { file: File }) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", "documents");
+      const res = await axiosInstance.post("/assets/upload", formData);
+      setProofUrl(res.data.url);
+      message.success("Comprovativo anexado.");
+    } catch {
+      message.error("Não foi possível enviar o comprovativo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    try {
+      await mutateAsync({ ...values, proofUrl });
+      message.success(
+        "Pedido enviado. O professor vai rever e aprovar/rejeitar.",
+      );
+      form.resetFields();
+      setProofUrl(undefined);
+      onClose();
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ?? "Não foi possível enviar o pedido.",
+      );
+    }
+  };
+
+  return (
+    <Modal
+      title="Pedir correcção deste registo"
+      open={open}
+      onCancel={onClose}
+      okText="Enviar pedido"
+      cancelText="Cancelar"
+      confirmLoading={isPending}
+      onOk={handleSubmit}
+    >
+      <Form form={form} layout="vertical">
+        <Form.Item
+          label="Motivo"
+          name="reason"
+          rules={[{ required: true, message: "Indique o motivo do pedido." }]}
+        >
+          <AntInput.TextArea
+            rows={3}
+            placeholder="Ex.: o meu educando esteve presente, mas foi marcado como ausente."
+          />
+        </Form.Item>
+        <Form.Item label="Anexar comprovativo (opcional)">
+          <Upload
+            customRequest={({ file }) => handleUpload({ file: file as File })}
+            showUploadList={false}
+            accept="image/*,.pdf"
+          >
+            <Button icon={<UploadOutlined />} loading={uploading}>
+              {proofUrl ? "Comprovativo anexado ✓" : "Escolher ficheiro"}
+            </Button>
+          </Upload>
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
 // ── Tab: Assiduidade ──────────────────────────────────────────────
-function AttendanceTab({ studentId }: { studentId: string }) {
-  const { data, isPending } = useStudentAttendance(studentId);
+function AttendanceTab({
+  studentId,
+  academicYearId,
+}: {
+  studentId: string;
+  academicYearId?: string;
+}) {
+  const { data, isPending } = useStudentAttendance(
+    studentId,
+    undefined,
+    academicYearId,
+  );
   const stats = data?.stats ?? [];
   const attendance = data?.attendance ?? [];
+  const [justifyingId, setJustifyingId] = useState<string | null>(null);
 
   if (isPending) return <Skeleton active paragraph={{ rows: 6 }} />;
   if (!attendance.length)
@@ -364,17 +686,40 @@ function AttendanceTab({ studentId }: { studentId: string }) {
                   {a.remarks}
                 </Typography.Text>
               )}
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, height: "auto", fontSize: 11 }}
+                onClick={() => setJustifyingId(a.id)}
+              >
+                Pedir correcção
+              </Button>
             </div>
           ),
         }))}
       />
+
+      {justifyingId && (
+        <JustifyAttendanceModal
+          studentId={studentId}
+          attendanceId={justifyingId}
+          open={!!justifyingId}
+          onClose={() => setJustifyingId(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Tab: Horário ──────────────────────────────────────────────────
-function ScheduleTab({ studentId }: { studentId: string }) {
-  const { data, isPending } = useStudentSchedule(studentId);
+function ScheduleTab({
+  studentId,
+  academicYearId,
+}: {
+  studentId: string;
+  academicYearId?: string;
+}) {
+  const { data, isPending } = useStudentSchedule(studentId, academicYearId);
   const schedule = data?.schedule ?? [];
   const section = data?.section;
 
@@ -436,6 +781,116 @@ function ScheduleTab({ studentId }: { studentId: string }) {
           </Col>
         ))}
       </Row>
+    </div>
+  );
+}
+
+// ── Tab: Avaliações (Fase 10) — calendário de testes agendados pelo
+// professor, distinto de "Avaliações"/Notas (o resultado em si).
+function AssessmentsTab({
+  studentId,
+  academicYearId,
+}: {
+  studentId: string;
+  academicYearId?: string;
+}) {
+  const { data: scheduleData, isPending: schedulePending } = useStudentSchedule(
+    studentId,
+    academicYearId,
+  );
+  const sectionId = scheduleData?.section?.id as string | undefined;
+  const [assessments, setAssessments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!sectionId) {
+      setAssessments([]);
+      return;
+    }
+    setLoading(true);
+    axiosInstance
+      .get(`/assessments?sectionId=${sectionId}`)
+      .then((res) => setAssessments(res.data?.assessments ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [sectionId]);
+
+  if (schedulePending || loading)
+    return <Skeleton active paragraph={{ rows: 6 }} />;
+  if (!assessments.length)
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="Sem avaliações agendadas"
+      />
+    );
+
+  const today = dayjs().startOf("day");
+  const upcoming = assessments.filter((a) => !dayjs(a.date).isBefore(today, "day"));
+  const past = assessments.filter((a) => dayjs(a.date).isBefore(today, "day"));
+
+  const renderCard = (a: any, isPast?: boolean) => (
+    <Col key={a.id} xs={24} sm={12} md={8}>
+      <Card size="small" style={{ opacity: isPast ? 0.6 : 1 }}>
+        <div
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}
+        >
+          <div>
+            <Typography.Text strong style={{ display: "block", fontSize: 13 }}>
+              {a.subject?.name}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {a.term?.name}
+            </Typography.Text>
+          </div>
+          <Tag color={isPast ? "default" : "processing"}>
+            {GRADE_TYPE_LABEL[a.type] ?? a.type}
+          </Tag>
+        </div>
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <CalendarOutlined style={{ color: "var(--color-text-secondary)" }} />
+          <Typography.Text style={{ fontSize: 13 }}>
+            {dayjs(a.date).format("DD/MM/YYYY")}
+          </Typography.Text>
+        </div>
+        {a.description && (
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 12, display: "block", marginTop: 6 }}
+          >
+            {a.description}
+          </Typography.Text>
+        )}
+      </Card>
+    </Col>
+  );
+
+  return (
+    <div>
+      {upcoming.length > 0 && (
+        <>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 12, display: "block", marginBottom: 12 }}
+          >
+            Próximas avaliações
+          </Typography.Text>
+          <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
+            {upcoming.map((a) => renderCard(a))}
+          </Row>
+        </>
+      )}
+      {past.length > 0 && (
+        <>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 12, display: "block", marginBottom: 12 }}
+          >
+            Já realizadas
+          </Typography.Text>
+          <Row gutter={[12, 12]}>{past.map((a) => renderCard(a, true))}</Row>
+        </>
+      )}
     </div>
   );
 }
@@ -549,7 +1004,8 @@ function ReportPaymentModal({
 
 // ── Tab: Propinas ─────────────────────────────────────────────────
 function InvoicesTab({ studentId }: { studentId: string }) {
-  const { data, isPending } = useStudentInvoices(studentId);
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
+  const { data, isPending } = useStudentInvoices(studentId, academicYearId);
   const { data: settingsData } = useFetch<{ settings: { paymentEntityCode?: string } }>(
     ["settings"],
     "settings",
@@ -568,17 +1024,32 @@ function InvoicesTab({ studentId }: { studentId: string }) {
       .catch(() => message.error("Não foi possível copiar."));
   };
 
-  if (isPending) return <Skeleton active paragraph={{ rows: 6 }} />;
-  if (!invoices.length)
-    return (
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="Sem facturas registadas"
-      />
-    );
-
   return (
     <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 12,
+        }}
+      >
+        <AcademicYearSelect
+          value={academicYearId}
+          onChange={setAcademicYearId}
+          allowClear
+          clearLabel="Todos os anos"
+        />
+      </div>
+
+      {isPending ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : !invoices.length ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="Sem facturas registadas"
+        />
+      ) : (
+        <>
       {totalPending > 0 && (
         <Card
           size="small"
@@ -685,7 +1156,56 @@ function InvoicesTab({ studentId }: { studentId: string }) {
           onClose={() => setReportingInvoiceId(null)}
         />
       )}
+        </>
+      )}
     </div>
+  );
+}
+
+// ── Tab: Documentos (Fase 9) — só leitura/descarga; o upload é feito
+// pela Secretaria/Admin no perfil do aluno.
+function DocumentsTab({ studentId }: { studentId: string }) {
+  const { data, isPending } = useFetch(
+    ["student-documents", studentId],
+    `student-documents?studentId=${studentId}`,
+    { enabled: !!studentId },
+  );
+  const documents = data?.documents ?? [];
+
+  if (isPending) return <Skeleton active paragraph={{ rows: 4 }} />;
+  if (!documents.length)
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="Sem documentos disponíveis"
+      />
+    );
+
+  return (
+    <List
+      dataSource={documents}
+      renderItem={(d: any) => (
+        <List.Item
+          actions={[
+            <a key="download" href={d.url} target="_blank" rel="noreferrer">
+              <Button size="small" icon={<DownloadOutlined />}>
+                Descarregar
+              </Button>
+            </a>,
+          ]}
+        >
+          <List.Item.Meta
+            avatar={<FileTextOutlined style={{ fontSize: 20 }} />}
+            title={d.label}
+            description={
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {intlDate(d.createdAt)}
+              </Typography.Text>
+            }
+          />
+        </List.Item>
+      )}
+    />
   );
 }
 
@@ -693,6 +1213,9 @@ function InvoicesTab({ studentId }: { studentId: string }) {
 export default function GuardianStudentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const activeYearId = useActiveAcademicYearId();
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   // const { data: gradesData } = useStudentGrades(id ?? "");
   // const { data: attendanceData } = useStudentAttendance(id ?? "");
@@ -705,36 +1228,85 @@ export default function GuardianStudentDetail() {
 
   return (
     <>
-      <CustomBreadcrumb
-        title="Detalhes do Educando"
-        items={[
-          { title: <HomeOutlined />, href: "/guardian" },
-          {
-            title: "Os meus educandos",
-            href: "#",
-            onClick: () => navigate("/guardian"),
-          },
-          { title: "Detalhes" },
-        ]}
-        onPrev
-      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <CustomBreadcrumb
+          title="Detalhes do Educando"
+          items={[
+            { title: <HomeOutlined />, href: "/guardian" },
+            {
+              title: "Os meus educandos",
+              href: "#",
+              onClick: () => navigate("/guardian"),
+            },
+            { title: "Detalhes" },
+          ]}
+          onPrev
+        />
+        <AcademicYearSelect
+          value={academicYearId ?? activeYearId}
+          onChange={setAcademicYearId}
+        />
+      </div>
 
       <Tabs
         items={[
           {
             key: "grades",
+            label: "Notas",
+            children: (
+              <GradesTab
+                studentId={id ?? ""}
+                academicYearId={academicYearId ?? activeYearId}
+              />
+            ),
+          },
+          {
+            key: "assessments",
             label: "Avaliações",
-            children: <GradesTab studentId={id ?? ""} />,
+            children: (
+              <AssessmentsTab
+                studentId={id ?? ""}
+                academicYearId={academicYearId ?? activeYearId}
+              />
+            ),
+          },
+          {
+            key: "performance",
+            label: "Desempenho",
+            children: (
+              <PerformanceTab
+                studentId={id ?? ""}
+                academicYearId={academicYearId ?? activeYearId}
+              />
+            ),
           },
           {
             key: "attendance",
             label: "Assiduidade",
-            children: <AttendanceTab studentId={id ?? ""} />,
+            children: (
+              <AttendanceTab
+                studentId={id ?? ""}
+                academicYearId={academicYearId ?? activeYearId}
+              />
+            ),
           },
           {
             key: "schedule",
             label: "Horário",
-            children: <ScheduleTab studentId={id ?? ""} />,
+            children: (
+              <ScheduleTab
+                studentId={id ?? ""}
+                academicYearId={academicYearId ?? activeYearId}
+              />
+            ),
           },
           {
             key: "invoices",
@@ -744,6 +1316,11 @@ export default function GuardianStudentDetail() {
               </Badge>
             ),
             children: <InvoicesTab studentId={id ?? ""} />,
+          },
+          {
+            key: "documents",
+            label: "Documentos",
+            children: <DocumentsTab studentId={id ?? ""} />,
           },
         ]}
       />

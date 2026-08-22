@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import { Input } from "../../../components/Input";
+import { useAuthStore } from "../../../store/authStore";
 import { useMutationPost } from "../../../utils/fetch";
 import {
   biRegex,
@@ -19,6 +20,9 @@ import {
 
 export default function AddNewStudent() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isSecretary = user?.type === "SECRETARY";
+  const base = isSecretary ? "/secretary/alunos" : "/alunos";
   const [form] = Form.useForm();
   const { mutateAsync, isPending } = useMutationPost(["students"], "students");
 
@@ -78,11 +82,11 @@ export default function AddNewStudent() {
       <CustomBreadcrumb
         title="Adicionar Novo Aluno"
         items={[
-          { href: "/", title: <HomeOutlined /> },
+          { href: isSecretary ? "/secretary" : "/", title: <HomeOutlined /> },
           {
             title: "Alunos",
             href: "#",
-            onClick: () => navigate("/alunos"),
+            onClick: () => navigate(base),
           },
           { title: "Adicionar Novo Aluno" },
         ]}

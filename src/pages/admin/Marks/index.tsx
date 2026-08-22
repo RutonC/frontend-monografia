@@ -23,10 +23,11 @@ import type { IAcademicYear, ILevel, ISection } from "../../../utils/type";
 const { Text } = Typography;
 
 const GRADE_TYPES = [
-  { label: "Avaliação 1 (AC1)", value: "AC1" },
-  { label: "Avaliação 2 (AC2)", value: "AC2" },
-  { label: "Exame", value: "EXAM" },
-  { label: "Recurso", value: "RETAKE" },
+  { label: "ACS 1 — 1ª Avaliação Contínua", value: "ACS1" },
+  { label: "ACS 2 — 2ª Avaliação Contínua", value: "ACS2" },
+  { label: "ACS 3 — 3ª Avaliação Contínua", value: "ACS3" },
+  { label: "ACP 1 — 1ª Avaliação com Prova", value: "ACP1" },
+  { label: "ACP 2 — 2ª Avaliação com Prova", value: "ACP2" },
 ];
 
 type GradeRow = {
@@ -45,7 +46,7 @@ export default function LancamentoNotas() {
   const [filterSection, setFilterSection] = useState<string | undefined>();
   const [filterSubject, setFilterSubject] = useState<string | undefined>();
   const [filterTerm, setFilterTerm] = useState<string | undefined>();
-  const [gradeType, setGradeType] = useState<string>("AC1");
+  const [gradeType, setGradeType] = useState<string>("ACS1");
   const [rows, setRows] = useState<GradeRow[]>([]);
   const [saved, setSaved] = useState<Record<string, boolean>>({});
 

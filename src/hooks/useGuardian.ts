@@ -61,30 +61,47 @@ export const useGuardianStudents = () =>
     "guardian/students",
   );
 
-export const useStudentGrades = (studentId: string, termId?: string) =>
+function buildQuery(params: Record<string, string | undefined>) {
+  const entries = Object.entries(params).filter(([, v]) => !!v) as [
+    string,
+    string,
+  ][];
+  if (entries.length === 0) return "";
+  return `?${entries.map(([k, v]) => `${k}=${v}`).join("&")}`;
+}
+
+export const useStudentGrades = (
+  studentId: string,
+  termId?: string,
+  academicYearId?: string,
+) =>
   useFetch(
-    ["guardian", "grades", studentId, termId ?? "all"],
-    `guardian/students/${studentId}/grades${termId ? `?termId=${termId}` : ""}`,
+    ["guardian", "grades", studentId, termId ?? "all", academicYearId ?? "current"],
+    `guardian/students/${studentId}/grades${buildQuery({ termId, academicYearId })}`,
     { enabled: !!studentId },
   );
 
-export const useStudentAttendance = (studentId: string, termId?: string) =>
+export const useStudentAttendance = (
+  studentId: string,
+  termId?: string,
+  academicYearId?: string,
+) =>
   useFetch(
-    ["guardian", "attendance", studentId, termId ?? "all"],
-    `guardian/students/${studentId}/attendance${termId ? `?termId=${termId}` : ""}`,
+    ["guardian", "attendance", studentId, termId ?? "all", academicYearId ?? "current"],
+    `guardian/students/${studentId}/attendance${buildQuery({ termId, academicYearId })}`,
     { enabled: !!studentId },
   );
 
-export const useStudentSchedule = (studentId: string) =>
+export const useStudentSchedule = (studentId: string, academicYearId?: string) =>
   useFetch(
-    ["guardian", "schedule", studentId],
-    `guardian/students/${studentId}/schedule`,
+    ["guardian", "schedule", studentId, academicYearId ?? "current"],
+    `guardian/students/${studentId}/schedule${buildQuery({ academicYearId })}`,
     { enabled: !!studentId },
   );
 
-export const useStudentInvoices = (studentId: string) =>
+export const useStudentInvoices = (studentId: string, academicYearId?: string) =>
   useFetch(
-    ["guardian", "invoices", studentId],
-    `guardian/students/${studentId}/invoices`,
+    ["guardian", "invoices", studentId, academicYearId ?? "all"],
+    `guardian/students/${studentId}/invoices${buildQuery({ academicYearId })}`,
     { enabled: !!studentId },
   );

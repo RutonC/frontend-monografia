@@ -1,5 +1,6 @@
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { Input } from "@/components/Input";
+import PageLoader from "@/components/PageLoader";
 import { useFetch, useMutationPatch } from "@/utils/fetch";
 import {
   biRegex,
@@ -18,7 +19,6 @@ import {
   Flex,
   Form,
   Row,
-  Spin,
   message,
 } from "antd";
 import dayjs from "dayjs";
@@ -126,11 +126,7 @@ export default function EditTeacher() {
   };
 
   if (loadingTeacher) {
-    return (
-      <Flex justify="center" align="center" style={{ minHeight: 400 }}>
-        <Spin size="large" />
-      </Flex>
-    );
+    return <PageLoader padding={0} style={{ minHeight: 400 }} />;
   }
 
   return (

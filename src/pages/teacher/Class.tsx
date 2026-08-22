@@ -6,7 +6,6 @@ import {
   Col,
   Empty,
   Row,
-  Spin,
   Tag,
   Tooltip,
   Typography,
@@ -14,6 +13,8 @@ import {
 import { useEffect, useState } from "react";
 import { BiBarChart, BiCheckCircle } from "react-icons/bi";
 import { useNavigate } from "react-router-dom";
+import AcademicYearSelect from "../../components/AcademicYearSelect";
+import PageLoader from "../../components/PageLoader";
 import { api } from "../../store/authStore";
 
 const { Title, Text } = Typography;
@@ -28,7 +29,7 @@ interface Section {
   name: string;
   capacity: number;
   level?: { name: string };
-  academicYear?: { name: string };
+  academicYear?: { year: string };
   teacherSections?: TeacherSection[];
   _count?: { enrollments: number; teacherSections: number };
 }
@@ -46,41 +47,56 @@ export default function TeacherClass() {
   const navigate = useNavigate();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   useEffect(() => {
+    setLoading(true);
     api
-      .get("/sections")
+      .get(
+        `/teacher/me/sections${academicYearId ? `?academicYearId=${academicYearId}` : ""}`,
+      )
       .then((res) => {
-        // controller devolve { success, sections, total, ... }
         setSections(res.data?.sections ?? []);
+        // Primeira carga (sem ano escolhido) — adopta o ano que o
+        // backend usou por defeito (o activo) para pré-seleccionar o filtro.
+        if (!academicYearId && res.data?.academicYearId) {
+          setAcademicYearId(res.data.academicYearId);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [academicYearId]);
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          Minhas Turmas
-        </Title>
-        <Text type="secondary">
-          {sections?.length} turma{sections?.length !== 1 ? "s" : ""} atribuída
-          {sections?.length !== 1 ? "s" : ""}
-        </Text>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 28,
+        }}
+      >
+        <div>
+          <Title level={3} style={{ margin: 0 }}>
+            Minhas Turmas
+          </Title>
+          <Text type="secondary">
+            {sections?.length} turma{sections?.length !== 1 ? "s" : ""} atribuída
+            {sections?.length !== 1 ? "s" : ""}
+          </Text>
+        </div>
+        <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
       </div>
 
-      {sections?.length === 0 ? (
+      {loading ? (
+        <PageLoader />
+      ) : sections?.length === 0 ? (
         <Card style={{ borderRadius: 12 }}>
           <Empty
-            description="Nenhuma turma atribuída ainda."
+            description="Nenhuma turma atribuída neste ano lectivo."
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </Card>
@@ -126,7 +142,7 @@ export default function TeacherClass() {
                           style={{ opacity: 0.85, fontSize: 13, marginTop: 2 }}
                         >
                           {section.level?.name ?? "—"} ·{" "}
-                          {section.academicYear?.name ?? "Ano actual"}
+                          {section.academicYear?.year ?? "Ano actual"}
                         </div>
                       </div>
                       <Avatar

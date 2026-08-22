@@ -8,7 +8,6 @@ import {
   Flex,
   Form,
   Row,
-  Spin,
   message,
 } from "antd";
 import dayjs from "dayjs";
@@ -16,6 +15,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
 import { Input } from "../../../components/Input";
+import PageLoader from "../../../components/PageLoader";
+import { useAuthStore } from "../../../store/authStore";
 import { useFetch, useMutationPatch } from "../../../utils/fetch";
 import {
   biRegex,
@@ -31,6 +32,8 @@ const DATE_FORMAT = "DD/MM/YYYY";
 export default function EditStudent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isSecretary = user?.type === "SECRETARY";
   const [form] = Form.useForm();
 
   const [districts, setDistricts] = useState<readonly DistrictName[]>(
@@ -125,11 +128,7 @@ export default function EditStudent() {
   };
 
   if (loading) {
-    return (
-      <Flex justify="center" align="center" style={{ minHeight: 400 }}>
-        <Spin size="large" />
-      </Flex>
-    );
+    return <PageLoader padding={0} style={{ minHeight: 400 }} />;
   }
 
   const fullName = student
@@ -141,11 +140,12 @@ export default function EditStudent() {
       <CustomBreadcrumb
         title="Editar Aluno"
         items={[
-          { href: "/", title: <HomeOutlined /> },
+          { href: isSecretary ? "/secretary" : "/", title: <HomeOutlined /> },
           {
             title: "Alunos",
             href: "#",
-            onClick: () => navigate("/alunos"),
+            onClick: () =>
+              navigate(isSecretary ? "/secretary/alunos" : "/alunos"),
           },
           { title: fullName },
         ]}

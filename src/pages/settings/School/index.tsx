@@ -1,6 +1,7 @@
 // configuracoes/escola/index.tsx
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { Input } from "@/components/Input";
+import PageLoader from "@/components/PageLoader";
 import axiosInstance from "@/utils/axiosInstance";
 import { resolveAssetUrl } from "@/utils/constants";
 import { useFetch } from "@/utils/fetch";
@@ -18,7 +19,6 @@ import {
   Modal,
   Row,
   Select,
-  Spin,
   Switch,
   Tag,
   Typography,
@@ -62,8 +62,14 @@ export default function EscolaSettings() {
       schoolLogo: settings.schoolLogo,
       paymentEntityCode: settings.paymentEntityCode,
       defaultGracePeriodDays: settings.defaultGracePeriodDays,
-      defaultLateFeePercent: settings.defaultLateFeePercent
-        ? Number(settings.defaultLateFeePercent) * 100
+      defaultLateFeeWeek1Percent: settings.defaultLateFeeWeek1Percent
+        ? Number(settings.defaultLateFeeWeek1Percent) * 100
+        : undefined,
+      defaultLateFeeWeek2Percent: settings.defaultLateFeeWeek2Percent
+        ? Number(settings.defaultLateFeeWeek2Percent) * 100
+        : undefined,
+      defaultLateFeeWeek3PlusPercent: settings.defaultLateFeeWeek3PlusPercent
+        ? Number(settings.defaultLateFeeWeek3PlusPercent) * 100
         : undefined,
       passingGrade: settings.passingGrade ? Number(settings.passingGrade) : undefined,
       maxGrade: settings.maxGrade ? Number(settings.maxGrade) : undefined,
@@ -124,9 +130,17 @@ export default function EscolaSettings() {
       schoolLogo: values.schoolLogo,
       paymentEntityCode: values.paymentEntityCode,
       defaultGracePeriodDays: values.defaultGracePeriodDays,
-      defaultLateFeePercent:
-        values.defaultLateFeePercent != null
-          ? values.defaultLateFeePercent / 100
+      defaultLateFeeWeek1Percent:
+        values.defaultLateFeeWeek1Percent != null
+          ? values.defaultLateFeeWeek1Percent / 100
+          : undefined,
+      defaultLateFeeWeek2Percent:
+        values.defaultLateFeeWeek2Percent != null
+          ? values.defaultLateFeeWeek2Percent / 100
+          : undefined,
+      defaultLateFeeWeek3PlusPercent:
+        values.defaultLateFeeWeek3PlusPercent != null
+          ? values.defaultLateFeeWeek3PlusPercent / 100
           : undefined,
       passingGrade: values.passingGrade,
       maxGrade: values.maxGrade,
@@ -217,9 +231,7 @@ export default function EscolaSettings() {
       />
 
       {isPending ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-          <Spin size="large" />
-        </div>
+        <PageLoader />
       ) : (
         <Card>
           <Form
@@ -302,7 +314,7 @@ export default function EscolaSettings() {
               Pagamentos
             </Text>
             <Row gutter={16}>
-              <Col span={8}>
+              <Col span={12}>
                 <Input.Text
                   label="Entidade de pagamento"
                   name="paymentEntityCode"
@@ -310,7 +322,7 @@ export default function EscolaSettings() {
                   help="Usada no slip de pagamento por entidade e referência."
                 />
               </Col>
-              <Col span={8}>
+              <Col span={12}>
                 <Form.Item
                   label="Prazo de tolerância por defeito (dias)"
                   name="defaultGracePeriodDays"
@@ -318,10 +330,34 @@ export default function EscolaSettings() {
                   <InputNumber min={0} style={{ width: "100%" }} />
                 </Form.Item>
               </Col>
+            </Row>
+            <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
+              Multa por atraso, por defeito — escalonada por semana. Cada
+              trimestre pode definir os seus próprios valores em{" "}
+              <a href="/trimestres">Configurações → Trimestres</a>; em branco
+              aqui usa estes valores.
+            </Text>
+            <Row gutter={16}>
               <Col span={8}>
                 <Form.Item
-                  label="Multa por atraso por defeito (%)"
-                  name="defaultLateFeePercent"
+                  label="1ª semana de atraso (%)"
+                  name="defaultLateFeeWeek1Percent"
+                >
+                  <InputNumber min={0} max={100} style={{ width: "100%" }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  label="2ª semana de atraso (%)"
+                  name="defaultLateFeeWeek2Percent"
+                >
+                  <InputNumber min={0} max={100} style={{ width: "100%" }} />
+                </Form.Item>
+              </Col>
+              <Col span={8}>
+                <Form.Item
+                  label="3ª semana em diante (%)"
+                  name="defaultLateFeeWeek3PlusPercent"
                 >
                   <InputNumber min={0} max={100} style={{ width: "100%" }} />
                 </Form.Item>

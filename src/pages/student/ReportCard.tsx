@@ -1,17 +1,50 @@
 // pages/student/ReportCard.tsx — Boletim/Notas do próprio aluno
 import { LockOutlined, HomeOutlined } from "@ant-design/icons";
-import { Card, Col, Empty, Row, Skeleton, Tag, Typography } from "antd";
+import { Card, Col, Empty, Row, Select, Skeleton, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
+import AcademicYearSelect from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMyGrades } from "@/hooks/useStudentSelf";
 import { useAuthStore } from "@/store/authStore";
 import { useFetch } from "@/utils/fetch";
 
 const GRADE_TYPE_LABEL: Record<string, string> = {
-  AC1: "Avaliação 1",
-  AC2: "Avaliação 2",
-  EXAM: "Exame",
-  RETAKE: "Recurso",
+  ACS1: "1ª Aval. Contínua",
+  ACS2: "2ª Aval. Contínua",
+  ACS3: "3ª Aval. Contínua",
+  ACP1: "1ª Aval. c/ Prova",
+  ACP2: "2ª Aval. c/ Prova",
 };
+
+function GradeChip({ grade }: { grade: any }) {
+  return (
+    <Card
+      size="small"
+      style={{
+        background: "var(--color-background-secondary)",
+        border: "none",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 500,
+          color:
+            grade.value >= 10
+              ? "var(--color-text-success)"
+              : "var(--color-text-danger)",
+        }}
+      >
+        {grade.value.toFixed(1)}
+      </div>
+      <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+        {GRADE_TYPE_LABEL[grade.type] ?? grade.type}
+      </div>
+    </Card>
+  );
+}
 
 function TermReportCard({
   studentId,
@@ -82,15 +115,62 @@ function TermReportCard({
 
 export default function StudentReportCard() {
   const { user } = useAuthStore();
+  const location = useLocation();
   const studentId = user?.id ?? "";
-  const { data, isPending } = useMyGrades();
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
+  // Atalho "Ver Notas" a partir de /student/disciplinas (Fase 9) — já
+  // chega com a disciplina pré-seleccionada.
+  const [selectedSubject, setSelectedSubject] = useState<string | undefined>(
+    (location.state as { subjectName?: string } | null)?.subjectName,
+  );
+  const { data, isPending } = useMyGrades(undefined, academicYearId);
+
+  // Primeira carga (sem ano escolhido) — adopta o ano que o backend usou
+  // por defeito (o activo) para pré-seleccionar o filtro.
+  useEffect(() => {
+    if (!academicYearId && (data as any)?.academicYearId) {
+      setAcademicYearId((data as any).academicYearId);
+    }
+  }, [academicYearId, data]);
+
+  const grouped = (data as any)?.grouped as
+    | Record<string, Record<string, any[]>>
+    | undefined;
+  const subjectOptions = grouped
+    ? Array.from(
+        new Set(Object.values(grouped).flatMap((s) => Object.keys(s))),
+      ).sort()
+    : [];
 
   return (
     <>
-      <CustomBreadcrumb
-        title="Boletim"
-        items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Boletim" }]}
-      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <CustomBreadcrumb
+          title="Boletim"
+          items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Boletim" }]}
+        />
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {subjectOptions.length > 0 && (
+            <Select
+              value={selectedSubject}
+              onChange={setSelectedSubject}
+              allowClear
+              placeholder="Todas as disciplinas"
+              style={{ minWidth: 200 }}
+              options={subjectOptions.map((s) => ({ value: s, label: s }))}
+            />
+          )}
+          <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
+        </div>
+      </div>
 
       {isPending ? (
         <Skeleton active paragraph={{ rows: 6 }} />
@@ -137,50 +217,69 @@ export default function StudentReportCard() {
             />
           ))}
 
-          {Object.entries((data as any).grouped as Record<string, any>).map(
-            ([term, subjects]) => (
-              <Card key={term} title={term} size="small" style={{ marginBottom: 16 }}>
-                {Object.entries(subjects as Record<string, any[]>).map(
-                  ([subject, grades]) => (
-                    <div key={subject} style={{ marginBottom: 16 }}>
-                      <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>
-                        {subject}
-                      </Typography.Text>
-                      <Row gutter={[8, 8]}>
-                        {grades.map((g: any) => (
-                          <Col key={g.id} xs={12} sm={6}>
-                            <Card
-                              size="small"
-                              style={{
-                                background: "var(--color-background-secondary)",
-                                border: "none",
-                                textAlign: "center",
-                              }}
+          {selectedSubject ? (
+            // Uma disciplina — lado a lado por trimestre, para
+            // acompanhar a evolução ao longo do ano.
+            <Card
+              title={`Evolução — ${selectedSubject}`}
+              size="small"
+              style={{ marginBottom: 16 }}
+            >
+              <Row gutter={[12, 12]}>
+                {Object.entries((data as any).grouped as Record<string, any>).map(
+                  ([term, subjects]) => {
+                    const grades = (subjects as Record<string, any[]>)[
+                      selectedSubject
+                    ];
+                    return (
+                      <Col key={term} xs={24} sm={12} md={8}>
+                        <Card size="small" title={term}>
+                          {!grades?.length ? (
+                            <Typography.Text
+                              type="secondary"
+                              style={{ fontSize: 12 }}
                             >
-                              <div
-                                style={{
-                                  fontSize: 22,
-                                  fontWeight: 500,
-                                  color:
-                                    g.value >= 10
-                                      ? "var(--color-text-success)"
-                                      : "var(--color-text-danger)",
-                                }}
-                              >
-                                {g.value.toFixed(1)}
-                              </div>
-                              <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                                {GRADE_TYPE_LABEL[g.type] ?? g.type}
-                              </div>
-                            </Card>
-                          </Col>
-                        ))}
-                      </Row>
-                    </div>
-                  ),
+                              Sem notas lançadas.
+                            </Typography.Text>
+                          ) : (
+                            <Row gutter={[8, 8]}>
+                              {grades.map((g: any) => (
+                                <Col key={g.id} xs={12}>
+                                  <GradeChip grade={g} />
+                                </Col>
+                              ))}
+                            </Row>
+                          )}
+                        </Card>
+                      </Col>
+                    );
+                  },
                 )}
-              </Card>
-            ),
+              </Row>
+            </Card>
+          ) : (
+            Object.entries((data as any).grouped as Record<string, any>).map(
+              ([term, subjects]) => (
+                <Card key={term} title={term} size="small" style={{ marginBottom: 16 }}>
+                  {Object.entries(subjects as Record<string, any[]>).map(
+                    ([subject, grades]) => (
+                      <div key={subject} style={{ marginBottom: 16 }}>
+                        <Typography.Text strong style={{ display: "block", marginBottom: 8 }}>
+                          {subject}
+                        </Typography.Text>
+                        <Row gutter={[8, 8]}>
+                          {grades.map((g: any) => (
+                            <Col key={g.id} xs={12} sm={6}>
+                              <GradeChip grade={g} />
+                            </Col>
+                          ))}
+                        </Row>
+                      </div>
+                    ),
+                  )}
+                </Card>
+              ),
+            )
           )}
         </div>
       )}

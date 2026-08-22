@@ -1,6 +1,8 @@
 // pages/student/Attendance.tsx — Assiduidade do próprio aluno
 import { HomeOutlined } from "@ant-design/icons";
 import { Card, Col, Empty, Progress, Row, Skeleton, Tag, Timeline, Typography } from "antd";
+import { useEffect, useState } from "react";
+import AcademicYearSelect from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMyAttendance } from "@/hooks/useStudentSelf";
 import { intlDate } from "@/utils/intl";
@@ -20,16 +22,34 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function StudentAttendance() {
-  const { data, isPending } = useMyAttendance();
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
+  const { data, isPending } = useMyAttendance(undefined, academicYearId);
   const stats = (data as any)?.stats ?? [];
   const attendance = (data as any)?.attendance ?? [];
 
+  useEffect(() => {
+    if (!academicYearId && (data as any)?.academicYearId) {
+      setAcademicYearId((data as any).academicYearId);
+    }
+  }, [academicYearId, data]);
+
   return (
     <>
-      <CustomBreadcrumb
-        title="Assiduidade"
-        items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Assiduidade" }]}
-      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <CustomBreadcrumb
+          title="Assiduidade"
+          items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Assiduidade" }]}
+        />
+        <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
+      </div>
 
       {isPending ? (
         <Skeleton active paragraph={{ rows: 6 }} />

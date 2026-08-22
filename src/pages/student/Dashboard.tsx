@@ -1,5 +1,6 @@
 // pages/student/Dashboard.tsx
 import NewsFeed from "@/components/NewsFeed";
+import PageLoader from "@/components/PageLoader";
 import { useAuthStore } from "@/store/authStore";
 import { useFetch } from "@/utils/fetch";
 import { intlDate } from "@/utils/intl";
@@ -12,7 +13,7 @@ import {
 } from "@ant-design/icons";
 import type { ColumnConfig, LineConfig, PieConfig } from "@ant-design/plots";
 import { Column, Line, Pie } from "@ant-design/plots";
-import { Card, Col, Empty, Row, Spin, Table, Tag, Typography } from "antd";
+import { Card, Col, Empty, Row, Table, Tag, Typography } from "antd";
 
 const { Title, Text } = Typography;
 
@@ -91,11 +92,7 @@ export default function StudentDashboard() {
   );
 
   if (isPending) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!data?.hasEnrollment) {

@@ -1,7 +1,9 @@
 // pages/teacher/Schedule.tsx
-import { Card, Col, Empty, Row, Select, Spin, Tag, Typography } from "antd";
+import { Card, Col, Empty, Row, Select, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { api, useAuthStore } from "../../store/authStore";
+import AcademicYearSelect from "../../components/AcademicYearSelect";
+import PageLoader from "../../components/PageLoader";
+import { api } from "../../store/authStore";
 
 const { Title, Text } = Typography;
 
@@ -102,26 +104,31 @@ function ScheduleBlock({ sch, color }: { sch: Schedule; color: string }) {
 }
 
 export default function TeacherSchedule() {
-  const { user } = useAuthStore();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [selSection, setSelSection] = useState<string | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   useEffect(() => {
-    // Filtra pelo teacherId do utilizador autenticado
+    setLoading(true);
+    const yearQuery = academicYearId ? `?academicYearId=${academicYearId}` : "";
     Promise.all([
-      api.get(`/schedules?teacherId=${user?.id}`),
-      api.get("/sections"),
+      api.get(`/teacher/me/schedule${yearQuery}`),
+      api.get(`/teacher/me/sections${yearQuery}`),
     ])
       .then(([schRes, secRes]) => {
-        // controller devolve { schedules: [], grouped: {} }
         setSchedules(schRes.data?.schedules ?? []);
         setSections(secRes.data?.sections ?? []);
+        // Primeira carga (sem ano escolhido) — adopta o ano que o
+        // backend usou por defeito (o activo) para pré-seleccionar o filtro.
+        if (!academicYearId && schRes.data?.academicYearId) {
+          setAcademicYearId(schRes.data.academicYearId);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [academicYearId]);
 
   // Cor estável por disciplina
   const subjectColorMap = new Map<string, string>();
@@ -152,14 +159,6 @@ export default function TeacherSchedule() {
 
   const total = filtered.length;
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   return (
     <div>
       {/* Header */}
@@ -181,17 +180,24 @@ export default function TeacherSchedule() {
             {total} aula{total !== 1 ? "s" : ""} por semana
           </Text>
         </div>
-        <Select
-          value={selSection}
-          onChange={setSelSection}
-          style={{ width: 220 }}
-          options={[
-            { value: "all", label: "Todas as turmas" },
-            ...sections.map((s) => ({ value: s.id, label: s.name })),
-          ]}
-        />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
+          <Select
+            value={selSection}
+            onChange={setSelSection}
+            style={{ width: 220 }}
+            options={[
+              { value: "all", label: "Todas as turmas" },
+              ...sections.map((s) => ({ value: s.id, label: s.name })),
+            ]}
+          />
+        </div>
       </div>
 
+      {loading ? (
+        <PageLoader />
+      ) : (
+        <>
       {/* Legenda de disciplinas */}
       {subjectColorMap.size > 0 && (
         <Card
@@ -299,6 +305,8 @@ export default function TeacherSchedule() {
             );
           })}
         </Row>
+      )}
+        </>
       )}
     </div>
   );

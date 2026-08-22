@@ -1,11 +1,15 @@
 // pages/admin/alunos/perfil.tsx
 import {
   CalendarOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
   HomeOutlined,
   LockOutlined,
   MailOutlined,
   PhoneOutlined,
   UnlockOutlined,
+  UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import {
@@ -19,7 +23,9 @@ import {
   Empty,
   Form,
   Input as AntInput,
+  List,
   Modal,
+  Popconfirm,
   Progress,
   Row,
   Skeleton,
@@ -29,12 +35,19 @@ import {
   Tag,
   Timeline,
   Typography,
+  Upload,
   message,
 } from "antd";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
-import { useFetch, useMutationPatch } from "../../../utils/fetch";
+import axiosInstance from "../../../utils/axiosInstance";
+import {
+  useFetch,
+  useMutationDel,
+  useMutationPatch,
+  useMutationPost,
+} from "../../../utils/fetch";
 import { intlDate } from "../../../utils/intl";
 
 const { Text, Title } = Typography;
@@ -46,10 +59,11 @@ const GENDER_LABEL: Record<string, string> = {
 };
 
 const GRADE_TYPE_LABEL: Record<string, string> = {
-  AC1: "Avaliação 1",
-  AC2: "Avaliação 2",
-  EXAM: "Exame",
-  RETAKE: "Recurso",
+  ACS1: "1ª Aval. Contínua",
+  ACS2: "2ª Aval. Contínua",
+  ACS3: "3ª Aval. Contínua",
+  ACP1: "1ª Aval. c/ Prova",
+  ACP2: "2ª Aval. c/ Prova",
 };
 
 const ATT_COLOR: Record<string, string> = {
@@ -299,6 +313,137 @@ function InvoicesTab({ studentId }: { studentId: string }) {
         },
       ]}
     />
+  );
+}
+
+// ── Tab Documentos (Fase 9) — Admin/Secretaria fazem o upload
+// (categoria MinIO "documents"); aluno/encarregado só vêem/descarregam.
+function DocumentsTab({ studentId }: { studentId: string }) {
+  const [label, setLabel] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const { data, isPending } = useFetch(
+    ["student-documents", studentId],
+    `student-documents?studentId=${studentId}`,
+    { enabled: !!studentId },
+  );
+  const documents = data?.documents ?? [];
+
+  const { mutateAsync, isPending: creating } = useMutationPost(
+    ["student-documents", studentId],
+    "student-documents",
+  );
+  const { mutateAsyncDel, isPending: deleting } = useMutationDel(
+    ["student-documents", studentId],
+    "student-documents",
+  );
+
+  const handleUpload = async ({ file }: { file: File }) => {
+    if (!label.trim()) {
+      message.warning(
+        "Indique um nome para o documento antes de enviar o ficheiro.",
+      );
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", "documents");
+      const res = await axiosInstance.post("/assets/upload", formData);
+      await mutateAsync({ studentId, label: label.trim(), url: res.data.url });
+      message.success("Documento adicionado.");
+      setLabel("");
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ??
+          "Não foi possível enviar o documento.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await mutateAsyncDel(id);
+      message.success("Documento removido.");
+    } catch {
+      message.error("Não foi possível remover o documento.");
+    }
+  };
+
+  return (
+    <div>
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <AntInput
+            placeholder="Nome do documento (ex.: Declaração de Matrícula)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            style={{ width: 320 }}
+          />
+          <Upload
+            customRequest={({ file }) => handleUpload({ file: file as File })}
+            showUploadList={false}
+            accept="image/*,.pdf"
+          >
+            <Button icon={<UploadOutlined />} loading={uploading || creating}>
+              Enviar ficheiro
+            </Button>
+          </Upload>
+        </Space>
+      </Card>
+
+      {isPending ? (
+        <Skeleton active paragraph={{ rows: 3 }} />
+      ) : !documents.length ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="Sem documentos"
+        />
+      ) : (
+        <List
+          dataSource={documents}
+          renderItem={(d: any) => (
+            <List.Item
+              actions={[
+                <a
+                  key="download"
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Button size="small" icon={<DownloadOutlined />}>
+                    Ver
+                  </Button>
+                </a>,
+                <Popconfirm
+                  key="delete"
+                  title="Remover este documento?"
+                  okText="Remover"
+                  cancelText="Cancelar"
+                  onConfirm={() => handleDelete(d.id)}
+                >
+                  <Button
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    loading={deleting}
+                  />
+                </Popconfirm>,
+              ]}
+            >
+              <List.Item.Meta
+                avatar={<FileTextOutlined style={{ fontSize: 20 }} />}
+                title={d.label}
+                description={intlDate(d.createdAt)}
+              />
+            </List.Item>
+          )}
+        />
+      )}
+    </div>
   );
 }
 
@@ -617,6 +762,11 @@ export default function StudentProfile() {
                       </Badge>
                     ),
                     children: <InvoicesTab studentId={id ?? ""} />,
+                  },
+                  {
+                    key: "documents",
+                    label: "Documentos",
+                    children: <DocumentsTab studentId={id ?? ""} />,
                   },
                 ]}
               />

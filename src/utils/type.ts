@@ -29,6 +29,22 @@ export interface IAcademicYear {
   updatedAt?: string;
 }
 
+export interface ITerm {
+  id: string;
+  name: string;
+  academicYearId: string;
+  startDate?: string;
+  endDate?: string;
+  monthlyFee?: number;
+  gracePeriodDays?: number;
+  lateFeeWeek1Percent?: number;
+  lateFeeWeek2Percent?: number;
+  lateFeeWeek3PlusPercent?: number;
+  academicYear?: IAcademicYear;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ILevel {
   id: string;
   name: string;

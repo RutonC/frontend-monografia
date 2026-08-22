@@ -1,4 +1,6 @@
 import {
+  BellOutlined,
+  CalendarOutlined,
   DashboardOutlined,
   MessageOutlined,
   UserOutlined,
@@ -23,6 +25,16 @@ const menuItems = [
     label: "Mensagens",
   },
   {
+    key: "/guardian/calendario",
+    icon: <CalendarOutlined />,
+    label: "Calendário",
+  },
+  {
+    key: "/guardian/notificacoes",
+    icon: <BellOutlined />,
+    label: "Notificações",
+  },
+  {
     key: "/guardian/perfil",
     icon: <UserOutlined />,
     label: "O meu perfil",
@@ -32,6 +44,9 @@ const menuItems = [
 function getSelectedKey(path: string) {
   if (path.startsWith("/guardian/educandos")) return "/guardian";
   if (path.startsWith("/guardian/mensagens")) return "/guardian/mensagens";
+  if (path.startsWith("/guardian/calendario")) return "/guardian/calendario";
+  if (path.startsWith("/guardian/notificacoes"))
+    return "/guardian/notificacoes";
   if (path.startsWith("/guardian/perfil")) return "/guardian/perfil";
   return "/guardian";
 }

@@ -1,4 +1,4 @@
-import { Divider, Input, Modal, Spin, Tag, Typography } from "antd";
+import { Divider, Input, Modal, Tag, Typography } from "antd";
 import { useEffect, useState, type JSX } from "react";
 import { BiSearch } from "react-icons/bi";
 import {
@@ -9,6 +9,7 @@ import {
 } from "react-icons/hi";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../utils/axiosInstance";
+import PageLoader from "./PageLoader";
 
 const { Text } = Typography;
 
@@ -146,9 +147,7 @@ export default function Search({ open, setOpen }: SearchProps) {
           <Divider styles={{ root: { padding: 0, margin: "4px 0" } }} />
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <Spin size="small" />
-            </div>
+            <PageLoader size="small" padding="20px 0" />
           ) : results.length === 0 ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <Text type="secondary">Nenhum resultado para "{search}"</Text>

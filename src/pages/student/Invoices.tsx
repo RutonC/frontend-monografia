@@ -22,6 +22,7 @@ import {
   Upload,
 } from "antd";
 import { useState } from "react";
+import AcademicYearSelect from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMyInvoices } from "@/hooks/useStudentSelf";
 import { useAuthStore } from "@/store/authStore";
@@ -152,7 +153,8 @@ function ReportPaymentModal({
 export default function StudentInvoices() {
   const { user } = useAuthStore();
   const studentId = user?.id ?? "";
-  const { data, isPending } = useMyInvoices();
+  const [academicYearId, setAcademicYearId] = useState<string | undefined>();
+  const { data, isPending } = useMyInvoices(academicYearId);
   const { data: settingsData } = useFetch<{ settings: { paymentEntityCode?: string } }>(
     ["settings"],
     "settings",
@@ -171,10 +173,26 @@ export default function StudentInvoices() {
 
   return (
     <>
-      <CustomBreadcrumb
-        title="Propinas"
-        items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Propinas" }]}
-      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <CustomBreadcrumb
+          title="Propinas"
+          items={[{ href: "/student", title: <HomeOutlined /> }, { title: "Propinas" }]}
+        />
+        <AcademicYearSelect
+          value={academicYearId}
+          onChange={setAcademicYearId}
+          allowClear
+          clearLabel="Todos os anos"
+        />
+      </div>
 
       {isPending ? (
         <Skeleton active paragraph={{ rows: 6 }} />

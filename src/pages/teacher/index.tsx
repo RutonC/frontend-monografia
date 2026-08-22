@@ -1,6 +1,6 @@
 import Filters, { type FiltersState } from "@/components/Filters";
 import { baseURL } from "@/utils/constants";
-import { HomeOutlined } from "@ant-design/icons";
+import { HomeOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Card, Col, Empty, Pagination, Row, Spin } from "antd";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -76,7 +76,7 @@ export default function Teacher() {
           />
         }
       >
-        <Spin spinning={loading}>
+        <Spin spinning={loading} indicator={<LoadingOutlined spin />}>
           {teachers.length === 0 && !loading ? (
             <Empty description="Nenhum professor encontrado" />
           ) : (

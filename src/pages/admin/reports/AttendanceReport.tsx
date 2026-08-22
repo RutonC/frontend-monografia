@@ -14,13 +14,13 @@ import {
   Progress,
   Row,
   Select,
-  Spin,
   Table,
   Tag,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
+import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
 
 const { Text } = Typography;
@@ -330,12 +330,7 @@ export default function AttendanceReport() {
     },
   ];
 
-  if (booting)
-    return (
-      <div style={{ textAlign: "center", padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    );
+  if (booting) return <PageLoader />;
 
   return (
     <div>
@@ -439,11 +434,7 @@ export default function AttendanceReport() {
         />
       )}
 
-      {loading && (
-        <div style={{ textAlign: "center", padding: 60 }}>
-          <Spin size="large" />
-        </div>
-      )}
+      {loading && <PageLoader padding={60} />}
 
       {rows.length > 0 && !loading && (
         <>
