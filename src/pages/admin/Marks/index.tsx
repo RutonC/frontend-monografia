@@ -17,17 +17,18 @@ import {
 } from "antd";
 import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
-import { useFetch, useMutationPost } from "../../../utils/fetch";
+import { useFetch, useMutationPatch, useMutationPost } from "../../../utils/fetch";
+import { toGrade } from "../../../utils/toGrade";
 import type { IAcademicYear, ILevel, ISection } from "../../../utils/type";
 
 const { Text } = Typography;
 
 const GRADE_TYPES = [
-  { label: "ACS 1 — 1ª Avaliação Contínua", value: "ACS1" },
-  { label: "ACS 2 — 2ª Avaliação Contínua", value: "ACS2" },
-  { label: "ACS 3 — 3ª Avaliação Contínua", value: "ACS3" },
-  { label: "ACP 1 — 1ª Avaliação com Prova", value: "ACP1" },
-  { label: "ACP 2 — 2ª Avaliação com Prova", value: "ACP2" },
+  { label: "ACS 1 — 1ª Avaliação Contínua e Sistemática", value: "ACS1" },
+  { label: "ACS 2 — 2ª Avaliação Contínua e Sistemática", value: "ACS2" },
+  { label: "ACS 3 — 3ª Avaliação Contínua e Sistemática", value: "ACS3" },
+  { label: "ACP 1 — 1ª Avaliação Contínua e Parcial", value: "ACP1" },
+  { label: "ACP 2 — 2ª Avaliação Contínua e Parcial", value: "ACP2" },
 ];
 
 type GradeRow = {
@@ -37,6 +38,9 @@ type GradeRow = {
   lastName: string;
   identifier: string;
   avatar?: string;
+  // Nota já existente encontrada para este aluno+disciplina+trimestre+tipo
+  // — presente ⇒ handleSaveAll faz PATCH em vez de POST.
+  gradeId?: string;
   value: number | null;
 };
 
@@ -79,10 +83,36 @@ export default function LancamentoNotas() {
     { enabled: !!filterSection },
   );
 
-  const { mutateAsync: createGrade, isPending: saving } = useMutationPost(
+  // Notas já lançadas para esta turma+disciplina+trimestre (todos os
+  // tipos — filtramos por gradeType ao montar as linhas) — usa o filtro
+  // sectionId do backend para não trazer a escola inteira.
+  const { data: gradesData } = useFetch(
+    [
+      "grades-lancamento",
+      filterSection ?? "",
+      filterSubject ?? "",
+      filterTerm ?? "",
+    ],
+    `grades?subjectId=${filterSubject ?? ""}&termId=${filterTerm ?? ""}&sectionId=${filterSection ?? ""}`,
+    { enabled: !!filterSection && !!filterSubject && !!filterTerm },
+  );
+
+  const { mutateAsync: createGrade, isPending: creating } = useMutationPost(
     ["grades"],
     "grades",
   );
+  const { mutateAsyncPatch: updateGrade, isPending: updating } =
+    useMutationPatch(["grades"], "grades");
+  const saving = creating || updating;
+
+  // Professor realmente atribuído a esta disciplina nesta turma
+  // (TeacherSection, já incluído em GET /sections/:id) — usado para
+  // preencher teacherId ao gravar; sem isto, o backend rejeita
+  // (teacherId inválido) ou a nota fica sem dono.
+  const assignedTeacherId = sectionDetail?.section?.teacherSections?.find(
+    (ts: any) => ts.subjectId === filterSubject,
+  )?.teacherId as string | undefined;
+  const noTeacherAssigned = !!filterSubject && !assignedTeacherId;
 
   // Opções
   const yearOptions =
@@ -115,22 +145,33 @@ export default function LancamentoNotas() {
       value: t.id,
     })) ?? [];
 
-  // Ao seleccionar turma, montar os alunos inscritos
+  // Ao seleccionar turma+disciplina+trimestre+tipo, montar os alunos
+  // inscritos já com as notas existentes pré-carregadas (antes ficava
+  // sempre `value: null`, mesmo havendo nota lançada).
   const handleLoadStudents = () => {
     const enrollments = enrollmentsData?.enrollments ?? [];
     if (!enrollments.length) {
       message.warning("Nenhum aluno inscrito nesta turma.");
       return;
     }
-    const mapped: GradeRow[] = enrollments.map((e: any) => ({
-      studentId: e.studentId,
-      enrollmentId: e.id,
-      firstName: e.student?.user?.firstName ?? "",
-      lastName: e.student?.user?.lastName ?? "",
-      identifier: e.student?.user?.identifier ?? "",
-      avatar: e.student?.user?.avatar,
-      value: null,
-    }));
+    const grades: any[] = gradesData?.grades ?? [];
+    const gradeMap = new Map(
+      grades.filter((g) => g.type === gradeType).map((g) => [g.studentId, g]),
+    );
+    const mapped: GradeRow[] = enrollments.map((e: any) => {
+      const g = gradeMap.get(e.studentId);
+      return {
+        studentId: e.studentId,
+        enrollmentId: e.id,
+        firstName: e.student?.user?.firstName ?? "",
+        lastName: e.student?.user?.lastName ?? "",
+        identifier: e.student?.user?.identifier ?? "",
+        avatar: e.student?.user?.avatar,
+        gradeId: g?.id,
+        // Grade.value é Decimal no Prisma — chega da API como string.
+        value: toGrade(g?.value),
+      };
+    });
     setRows(mapped);
     setSaved({});
   };
@@ -147,6 +188,12 @@ export default function LancamentoNotas() {
       message.error("Seleccione a disciplina e o trimestre.");
       return;
     }
+    if (!assignedTeacherId) {
+      message.error(
+        "Não há nenhum professor atribuído a esta disciplina nesta turma.",
+      );
+      return;
+    }
 
     const toSave = rows.filter((r) => r.value !== null && !saved[r.studentId]);
     if (!toSave.length) {
@@ -158,16 +205,23 @@ export default function LancamentoNotas() {
     let errors = 0;
     for (const row of toSave) {
       try {
-        await createGrade({
-          studentId: row.studentId,
-          enrollmentId: row.enrollmentId,
-          subjectId: filterSubject,
-          termId: filterTerm,
-          teacherId: "", // preenchido pelo backend via req.user
-          type: gradeType,
-          value: row.value,
-          weight: 1,
-        });
+        if (row.gradeId) {
+          await updateGrade({
+            id: row.gradeId,
+            body: { value: row.value, type: gradeType },
+          });
+        } else {
+          await createGrade({
+            studentId: row.studentId,
+            enrollmentId: row.enrollmentId,
+            subjectId: filterSubject,
+            termId: filterTerm,
+            teacherId: assignedTeacherId,
+            type: gradeType,
+            value: row.value,
+            weight: 1,
+          });
+        }
         setSaved((prev) => ({ ...prev, [row.studentId]: true }));
         ok++;
       } catch {
@@ -183,7 +237,14 @@ export default function LancamentoNotas() {
       message.error(`${errors} nota${errors > 1 ? "s" : ""} com erro.`);
   };
 
-  const canLoad = !!filterSection && !!filterYear;
+  // Precisa também de disciplina+trimestre agora, para pré-carregar as
+  // notas já existentes desse tipo (antes só exigia turma+ano).
+  const canLoad =
+    !!filterSection &&
+    !!filterYear &&
+    !!filterSubject &&
+    !!filterTerm &&
+    !noTeacherAssigned;
 
   return (
     <>
@@ -297,6 +358,14 @@ export default function LancamentoNotas() {
             />
           </Col>
         </Row>
+        {noTeacherAssigned && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 12 }}
+            message="Não há nenhum professor atribuído a esta disciplina nesta turma — atribua um em Turmas & Classes antes de lançar notas."
+          />
+        )}
         <Flex justify="flex-end" style={{ marginTop: 12 }}>
           <Button
             type="primary"

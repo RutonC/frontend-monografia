@@ -25,6 +25,8 @@ import type { ColumnsType } from "antd/es/table";
 import { useEffect, useRef, useState } from "react";
 import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
+import { fetchAllPages } from "../../../utils/fetchAllPages";
+import { toGrade } from "../../../utils/toGrade";
 import type { StudentFichaRow, TermGrades } from "../../../utils/fichaExcel";
 import {
   approved,
@@ -301,23 +303,32 @@ function useAnnualRows(
       const termsData: Term[] = tRes.data?.terms ?? [];
       setTerms(termsData);
 
-      // Carrega notas para cada trimestre em paralelo
+      // Carrega notas para cada trimestre em paralelo — sempre escopadas à
+      // turma (sectionId) para não misturar/truncar notas de outras
+      // turmas, e paginadas por completo (fetchAllPages) para não perder
+      // registos além da 1ª página.
       const gradeResponses = await Promise.all(
         termsData.map((t) =>
-          api.get(`/grades?subjectId=${subjectId}&termId=${t.id}`),
+          fetchAllPages(
+            `/grades?subjectId=${subjectId}&termId=${t.id}&sectionId=${sectionId}`,
+            "grades",
+          ),
         ),
       );
 
       // Mapa: studentId → termId → type → value
       const master = new Map<string, Map<string, Map<string, number>>>();
-      gradeResponses.forEach((gRes, tIdx) => {
+      gradeResponses.forEach((grades, tIdx) => {
         const tid = termsData[tIdx]?.id;
         if (!tid) return;
-        (gRes.data?.grades ?? []).forEach((g: any) => {
+        grades.forEach((g: any) => {
           if (!master.has(g.studentId)) master.set(g.studentId, new Map());
           if (!master.get(g.studentId)!.has(tid))
             master.get(g.studentId)!.set(tid, new Map());
-          master.get(g.studentId)!.get(tid)!.set(g.type, g.value);
+          // Grade.value é Decimal no Prisma — chega da API como string
+          // (ex.: "17.00"); sem converter, calcMACS/MAP/MT/MA fazem
+          // concatenação de string em vez de soma.
+          master.get(g.studentId)!.get(tid)!.set(g.type, toGrade(g.value));
         });
       });
 
@@ -785,16 +796,18 @@ function TabPautaTrimestral({
     if (!filters.sectionId || !filters.subjectId || !selTerm) return;
     setLoading(true);
     try {
-      const [eRes, gRes] = await Promise.all([
+      const [eRes, grades] = await Promise.all([
         api.get(`/enrollments?sectionId=${filters.sectionId}&status=APPROVED`),
-        api.get(`/grades?subjectId=${filters.subjectId}&termId=${selTerm}`),
+        fetchAllPages(
+          `/grades?subjectId=${filters.subjectId}&termId=${selTerm}&sectionId=${filters.sectionId}`,
+          "grades",
+        ),
       ]);
       const enrollments: any[] = eRes.data?.enrollments ?? [];
-      const grades: any[] = gRes.data?.grades ?? [];
       const gMap = new Map<string, Map<string, number>>();
       grades.forEach((g: any) => {
         if (!gMap.has(g.studentId)) gMap.set(g.studentId, new Map());
-        gMap.get(g.studentId)!.set(g.type, g.value);
+        gMap.get(g.studentId)!.set(g.type, toGrade(g.value));
       });
       setRows(
         enrollments.map((e) => {
@@ -1129,6 +1142,7 @@ function TabBoletimAluno({
   const [selStudent, setSelStudent] = useState<string | null>(null);
   const [annualRows, setAnnualRows] = useState<AnnualRow[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
+  const [sectionMeta, setSectionMeta] = useState<Section | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
@@ -1151,11 +1165,15 @@ function TabBoletimAluno({
     if (!filters.sectionId || !selStudent) return;
     setLoading(true);
     try {
-      const tRes = filters.yearId
-        ? await api.get(`/terms?academicYearId=${filters.yearId}`)
-        : await api.get("/terms");
+      const [tRes, sRes] = await Promise.all([
+        filters.yearId
+          ? api.get(`/terms?academicYearId=${filters.yearId}`)
+          : api.get("/terms"),
+        api.get(`/sections/${filters.sectionId}`),
+      ]);
       const termsData: Term[] = tRes.data?.terms ?? [];
       setTerms(termsData);
+      setSectionMeta(sRes.data?.section ?? null);
 
       // Busca notas de TODAS as disciplinas para este aluno
       const subjectsToFetch = filters.subjectId
@@ -1170,19 +1188,24 @@ function TabBoletimAluno({
 
       await Promise.all(
         subjectsToFetch.map(async (subId) => {
+          // studentId escopa o pedido a um único aluno — bem menor do que
+          // pedir a disciplina+trimestre inteiros e filtrar no cliente.
           const gradeResponses = await Promise.all(
             termsData.map((t) =>
-              api.get(`/grades?subjectId=${subId}&termId=${t.id}`),
+              fetchAllPages(
+                `/grades?subjectId=${subId}&termId=${t.id}&studentId=${selStudent}`,
+                "grades",
+              ),
             ),
           );
           const studentGrades = new Map<string, Map<string, number>>();
-          gradeResponses.forEach((gRes, tIdx) => {
+          gradeResponses.forEach((grades, tIdx) => {
             const tid = termsData[tIdx]?.id;
             if (!tid) return;
-            (gRes.data?.grades ?? []).forEach((g: any) => {
+            grades.forEach((g: any) => {
               if (g.studentId !== selStudent) return;
               if (!studentGrades.has(tid)) studentGrades.set(tid, new Map());
-              studentGrades.get(tid)!.set(g.type, g.value);
+              studentGrades.get(tid)!.set(g.type, toGrade(g.value));
             });
           });
           const termGrades = termsData.map((t) => {
@@ -1206,7 +1229,8 @@ function TabBoletimAluno({
         subjectsToFetch.map((subId) => ({
           enrollmentId: enroll.id,
           studentId: selStudent,
-          name: subjects.find((s) => s.id === subId)?.name ?? subId, // nome da disciplina como "nome"
+          // nome da disciplina como "nome" — nunca o id em bruto.
+          name: subjects.find((s) => s.id === subId)?.name ?? "—",
           identifier: u.identifier,
           avatar: u.avatar,
           terms: masterSubject.get(subId) ?? termsData.map(() => emptyTG()),
@@ -1382,7 +1406,8 @@ function TabBoletimAluno({
               Boletim Individual — {studentName}
             </Title>
             <Text type="secondary">
-              Turma {filters.sectionId} ·{" "}
+              {sectionMeta?.level?.name ?? "—"} · Turma{" "}
+              {sectionMeta?.name ?? "—"} ·{" "}
               {years.find((y) => y.id === filters.yearId)?.year ?? "—"}
             </Text>
           </div>

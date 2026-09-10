@@ -50,11 +50,11 @@ import {
 const { Title, Text } = Typography;
 
 const GRADE_TYPES = [
-  { value: "ACS1", label: "ACS 1 — 1ª Avaliação Contínua" },
-  { value: "ACS2", label: "ACS 2 — 2ª Avaliação Contínua" },
-  { value: "ACS3", label: "ACS 3 — 3ª Avaliação Contínua" },
-  { value: "ACP1", label: "ACP 1 — 1ª Avaliação com Prova" },
-  { value: "ACP2", label: "ACP 2 — 2ª Avaliação com Prova" },
+  { value: "ACS1", label: "ACS 1 — 1ª Avaliação Contínua e Sistemática" },
+  { value: "ACS2", label: "ACS 2 — 2ª Avaliação Contínua e Sistemática" },
+  { value: "ACS3", label: "ACS 3 — 3ª Avaliação Contínua e Sistemática" },
+  { value: "ACP1", label: "ACP 1 — 1ª Avaliação Contínua e Parcial" },
+  { value: "ACP2", label: "ACP 2 — 2ª Avaliação Contínua e Parcial" },
 ];
 
 interface Subject {
@@ -435,35 +435,19 @@ function TabLancar({
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={4}>
-            <Form.Item
-              label="Trimestre"
-              style={{ marginBottom: 0 }}
-              help={
-                selTerm && currentTermId && selTerm !== currentTermId ? (
-                  <Text type="warning" style={{ fontSize: 11 }}>
-                    Trimestre fechado — precisa de excepção para guardar.
-                  </Text>
-                ) : undefined
-              }
-            >
+            <Form.Item label="Trimestre" style={{ marginBottom: 0 }}>
               <Select
                 placeholder="Trimestre"
                 value={selTerm}
                 onChange={setSelTerm}
                 disabled={!selSubject}
-                options={terms.map((t) => ({
-                  value: t.id,
-                  label: (
-                    <span>
-                      {t.name}
-                      {currentTermId && t.id !== currentTermId && (
-                        <LockOutlined
-                          style={{ marginLeft: 6, fontSize: 11, color: "#999" }}
-                        />
-                      )}
-                    </span>
-                  ),
-                }))}
+                // Só o trimestre corrente — o professor não pode lançar
+                // notas de outros trimestres (só o Admin pode); sem
+                // trimestre corrente definido, mostra todos para não
+                // bloquear o ecrã por completo.
+                options={terms
+                  .filter((t) => !currentTermId || t.id === currentTermId)
+                  .map((t) => ({ value: t.id, label: t.name }))}
               />
             </Form.Item>
           </Col>
@@ -1495,8 +1479,8 @@ export default function TeacherMarks() {
             Gestão de Notas
           </Title>
           <Text type="secondary">
-            ACS (Avaliações Contínuas) · ACP (Avaliações com Prova) · MT (Média
-            Trimestral) · MA (Média Anual)
+            ACS (Avaliação Contínua e Sistemática) · ACP (Avaliação Contínua e
+            Parcial) · MT (Média Trimestral) · MA (Média Anual)
           </Text>
         </div>
         <AcademicYearSelect

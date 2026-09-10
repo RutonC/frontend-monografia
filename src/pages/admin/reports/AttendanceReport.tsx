@@ -17,11 +17,13 @@ import {
   Table,
   Tag,
   Typography,
+  message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
+import { fetchAllPages } from "../../../utils/fetchAllPages";
 
 const { Text } = Typography;
 
@@ -137,8 +139,13 @@ export default function AttendanceReport() {
       if (selTerm) q.set("termId", selTerm);
       if (selSubject) q.set("subjectId", selSubject);
 
-      const aRes = await api.get(`/attendance?${q}&limit=9999`);
-      const attendance: any[] = aRes.data?.attendance ?? [];
+      // `limit=9999` era rejeitado pelo Zod (máximo 100) e o erro ficava
+      // invisível (sem catch) — fetchAllPages agrega todas as páginas
+      // dentro do limite permitido.
+      const attendance = await fetchAllPages<any>(
+        `/attendance?${q}`,
+        "attendance",
+      );
 
       // Agrega por estudante
       const map = new Map<
@@ -185,6 +192,12 @@ export default function AttendanceReport() {
             pctPresence,
           };
         }),
+      );
+    } catch (err: any) {
+      // Antes, um erro aqui (ex.: filtros inválidos) ficava invisível —
+      // a lista simplesmente não actualizava, sem nenhuma pista.
+      message.error(
+        err?.response?.data?.message ?? "Erro ao carregar assiduidade.",
       );
     } finally {
       setLoading(false);
