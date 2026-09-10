@@ -27,6 +27,9 @@ export interface FichaData {
   subjectName: string;
   year: string; // "2025"
   students: StudentFichaRow[];
+  // Identidade da escola (Definições → Escola) — nome no cabeçalho,
+  // morada/telefone na linha abaixo. Sem isto, cai num rótulo genérico.
+  school?: { name?: string | null; address?: string | null; phone?: string | null };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -83,10 +86,10 @@ export function gerarFichaExcel(data: FichaData): void {
 
   // ── Construir a grelha como array 2D ──────────────────────────
 
-  // Linha 0 — cabeçalho da escola
+  // Linha 0 — cabeçalho da escola (nome vindo das Definições)
   const R0 = [
     "", // col A — espaço para logo
-    "Escola Comunitária da A.M.S",
+    data.school?.name || "Escola",
     "",
     "",
     "",
@@ -115,8 +118,14 @@ export function gerarFichaExcel(data: FichaData): void {
     "",
   ];
 
-  // Linha 1 — "Ficha de avaliação"
-  const R1 = ["", "Ficha de avaliação"];
+  // Linha 1 — "Ficha de avaliação" + contactos da escola, se houver
+  const contactos = [data.school?.address, data.school?.phone]
+    .filter(Boolean)
+    .join(" · ");
+  const R1 = [
+    "",
+    contactos ? `Ficha de Avaliação — ${contactos}` : "Ficha de Avaliação",
+  ];
 
   // Linha 2 — info do professor/turma
   const R2 = [

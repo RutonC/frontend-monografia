@@ -9,6 +9,7 @@ import {
   useStudentInvoices,
   useStudentSchedule,
 } from "@/hooks/useGuardian";
+import { downloadFile } from "@/utils/downloadFile";
 import { useFetch, useMutationPost } from "@/utils/fetch";
 import { intlDate } from "@/utils/intl";
 import {
@@ -16,6 +17,7 @@ import {
   CalendarOutlined,
   CopyOutlined,
   DownloadOutlined,
+  FilePdfOutlined,
   FileTextOutlined,
   HomeOutlined,
   LockOutlined,
@@ -258,6 +260,7 @@ function GradesTab({
         style={{
           display: "flex",
           justifyContent: "flex-end",
+          gap: 12,
           marginBottom: 12,
         }}
       >
@@ -269,6 +272,21 @@ function GradesTab({
           style={{ minWidth: 200 }}
           options={subjectOptions.map((s) => ({ value: s, label: s }))}
         />
+        <Button
+          icon={<FilePdfOutlined />}
+          onClick={async () => {
+            try {
+              await downloadFile(
+                `/reports/boletim.pdf?studentId=${studentId}${academicYearId ? `&academicYearId=${academicYearId}` : ""}`,
+                "boletim.pdf",
+              );
+            } catch {
+              message.error("Não foi possível gerar o boletim.");
+            }
+          }}
+        >
+          Descarregar Boletim (PDF)
+        </Button>
       </div>
 
       {Array.from(terms.entries()).map(([termId, termName]) => (
@@ -1105,6 +1123,44 @@ function InvoicesTab({ studentId }: { studentId: string }) {
                   </div>
                 </div>
               </div>
+
+              {(inv.payments ?? [])
+                .filter((p: any) => p.confirmed)
+                .map((p: any) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      marginTop: 8,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      fontSize: 12,
+                    }}
+                  >
+                    <Typography.Text type="secondary">
+                      Pagamento de MZN {Number(p.amountPaid).toFixed(2)} —{" "}
+                      {intlDate(p.paymentDate)}
+                    </Typography.Text>
+                    <Button
+                      size="small"
+                      icon={<FilePdfOutlined />}
+                      onClick={async () => {
+                        try {
+                          await downloadFile(
+                            `/payments/${p.id}/recibo.pdf`,
+                            "recibo.pdf",
+                          );
+                        } catch {
+                          message.error("Não foi possível gerar o recibo.");
+                        }
+                      }}
+                    >
+                      Descarregar Recibo
+                    </Button>
+                  </div>
+                ))}
 
               {payable && inv.paymentReference && (
                 <div

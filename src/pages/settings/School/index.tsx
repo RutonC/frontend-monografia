@@ -481,7 +481,6 @@ export default function EscolaSettings() {
                 >
                   <Select
                     mode="tags"
-                    open={false}
                     placeholder="Ex.: ams.edu.mz"
                     tokenSeparators={[",", " "]}
                   />
@@ -495,7 +494,6 @@ export default function EscolaSettings() {
                 >
                   <Select
                     mode="tags"
-                    open={false}
                     placeholder="Ex.: gmail.com"
                     tokenSeparators={[",", " "]}
                   />
@@ -562,7 +560,7 @@ export default function EscolaSettings() {
                   name="allowedIps"
                   help="Se preenchido, só estes IPs (exactos ou por prefixo, ex.: 10.0.0.) acedem à plataforma."
                 >
-                  <Select mode="tags" open={false} placeholder="Ex.: 10.0.0." tokenSeparators={[",", " "]} />
+                  <Select mode="tags" placeholder="Ex.: 10.0.0." tokenSeparators={[",", " "]} />
                 </Form.Item>
               </Col>
               <Col span={12}>
@@ -571,7 +569,7 @@ export default function EscolaSettings() {
                   name="blockedIps"
                   help="Estes IPs nunca acedem à plataforma."
                 >
-                  <Select mode="tags" open={false} placeholder="Ex.: 203.0.113.5" tokenSeparators={[",", " "]} />
+                  <Select mode="tags" placeholder="Ex.: 203.0.113.5" tokenSeparators={[",", " "]} />
                 </Form.Item>
               </Col>
               <Col span={24}>

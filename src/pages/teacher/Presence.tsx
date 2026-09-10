@@ -56,6 +56,10 @@ interface Section {
 interface Term {
   id: string;
   name: string;
+  // O backend já os devolve — usados para limitar o calendário ao
+  // trimestre corrente (além do dia-com-aula já verificado).
+  startDate?: string;
+  endDate?: string;
 }
 
 function subjectsForSection(
@@ -243,6 +247,7 @@ export default function TeacherPresence() {
 
   const [sections, setSections] = useState<Section[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
+  const [currentTermId, setCurrentTermId] = useState<string | undefined>();
   const [academicYearId, setAcademicYearId] = useState<string | undefined>();
 
   // filtros obrigatórios (o bulk attendance exige todos os 4)
@@ -289,6 +294,7 @@ export default function TeacherPresence() {
       .then(([s, t, sch]) => {
         setSections(s.data?.sections ?? []);
         setTerms(t.data?.terms ?? t.data?.data ?? []);
+        setCurrentTermId(t.data?.currentTermId ?? undefined);
         setSchedules(sch.data?.schedules ?? []);
         // Primeira carga (sem ano escolhido) — adopta o ano que o
         // backend usou por defeito (o activo) para pré-seleccionar o filtro.
@@ -544,7 +550,11 @@ export default function TeacherPresence() {
                 value={selTerm}
                 onChange={setSelTerm}
                 disabled={!selSubject}
-                options={terms.map((t) => ({ value: t.id, label: t.name }))}
+                // Só o trimestre corrente — assiduidade regista-se do
+                // trimestre a decorrer (mesmo tratamento de Marks.tsx).
+                options={terms
+                  .filter((t) => !currentTermId || t.id === currentTermId)
+                  .map((t) => ({ value: t.id, label: t.name }))}
               />
             </Form.Item>
           </Col>
@@ -557,6 +567,20 @@ export default function TeacherPresence() {
                 format="DD/MM/YYYY"
                 disabledDate={(d) => {
                   if (d.isAfter(dayjs(), "day")) return true;
+                  // Além do dia-com-aula, o dia tem de estar dentro do
+                  // trimestre corrente — não pode registar-se assiduidade
+                  // de um trimestre já passado.
+                  const currentTerm = terms.find((t) => t.id === currentTermId);
+                  if (
+                    currentTerm?.startDate &&
+                    d.isBefore(dayjs(currentTerm.startDate), "day")
+                  )
+                    return true;
+                  if (
+                    currentTerm?.endDate &&
+                    d.isAfter(dayjs(currentTerm.endDate), "day")
+                  )
+                    return true;
                   if (!selSubject) return false;
                   return !scheduledDays.has(DAY_OF_WEEK_BY_DAYJS_DAY[d.day()]);
                 }}

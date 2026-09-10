@@ -45,11 +45,13 @@ function EventsCalendar({ fullscreen = false, limit = 20 }: EventsCalendarProps)
         fullscreen={fullscreen}
         cellRender={(date, info) => {
           if (info.type !== "date") return info.originNode
+          // O antd já desenha o número do dia por si (.ant-picker-calendar-date-value);
+          // info.originNode TAMBÉM traz o número — devolvê-lo aqui duplicava-o em
+          // todos os dias. Sem evento, não há nada a acrescentar.
           const hasEvent = eventDates.has(date.format("YYYY-MM-DD"))
-          if (!hasEvent) return info.originNode
+          if (!hasEvent) return null
           return (
-            <div style={{ position: "relative" }}>
-              {info.originNode}
+            <div style={{ position: "relative", width: "100%", height: "100%" }}>
               <div
                 style={{
                   position: "absolute",

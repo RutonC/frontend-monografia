@@ -5,6 +5,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  FilePdfOutlined,
   LockOutlined,
   SaveOutlined,
   TableOutlined,
@@ -36,6 +37,8 @@ import { useLocation } from "react-router-dom";
 import AcademicYearSelect from "../../components/AcademicYearSelect";
 import PageLoader from "../../components/PageLoader";
 import { api, useAuthStore } from "../../store/authStore";
+import { downloadFile } from "../../utils/downloadFile";
+import { useFetch } from "../../utils/fetch";
 import {
   type StudentFichaRow,
   type TermGrades,
@@ -50,11 +53,11 @@ import {
 const { Title, Text } = Typography;
 
 const GRADE_TYPES = [
-  { value: "ACS1", label: "ACS 1 — 1ª Avaliação Contínua" },
-  { value: "ACS2", label: "ACS 2 — 2ª Avaliação Contínua" },
-  { value: "ACS3", label: "ACS 3 — 3ª Avaliação Contínua" },
-  { value: "ACP1", label: "ACP 1 — 1ª Avaliação com Prova" },
-  { value: "ACP2", label: "ACP 2 — 2ª Avaliação com Prova" },
+  { value: "ACS1", label: "ACS 1 — 1ª Avaliação Contínua e Sistemática" },
+  { value: "ACS2", label: "ACS 2 — 2ª Avaliação Contínua e Sistemática" },
+  { value: "ACS3", label: "ACS 3 — 3ª Avaliação Contínua e Sistemática" },
+  { value: "ACP1", label: "ACP 1 — 1ª Avaliação Contínua e Parcial" },
+  { value: "ACP2", label: "ACP 2 — 2ª Avaliação Contínua e Parcial" },
 ];
 
 interface Subject {
@@ -435,35 +438,19 @@ function TabLancar({
             </Form.Item>
           </Col>
           <Col xs={24} sm={12} md={4}>
-            <Form.Item
-              label="Trimestre"
-              style={{ marginBottom: 0 }}
-              help={
-                selTerm && currentTermId && selTerm !== currentTermId ? (
-                  <Text type="warning" style={{ fontSize: 11 }}>
-                    Trimestre fechado — precisa de excepção para guardar.
-                  </Text>
-                ) : undefined
-              }
-            >
+            <Form.Item label="Trimestre" style={{ marginBottom: 0 }}>
               <Select
                 placeholder="Trimestre"
                 value={selTerm}
                 onChange={setSelTerm}
                 disabled={!selSubject}
-                options={terms.map((t) => ({
-                  value: t.id,
-                  label: (
-                    <span>
-                      {t.name}
-                      {currentTermId && t.id !== currentTermId && (
-                        <LockOutlined
-                          style={{ marginLeft: 6, fontSize: 11, color: "#999" }}
-                        />
-                      )}
-                    </span>
-                  ),
-                }))}
+                // Só o trimestre corrente — o professor não pode lançar
+                // notas de outros trimestres (só o Admin pode); sem
+                // trimestre corrente definido, mostra todos para não
+                // bloquear o ecrã por completo.
+                options={terms
+                  .filter((t) => !currentTermId || t.id === currentTermId)
+                  .map((t) => ({ value: t.id, label: t.name }))}
               />
             </Form.Item>
           </Col>
@@ -869,6 +856,11 @@ function TabPautaAnual({
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const subjects = subjectsForSection(sections, selSection);
+  const { data: settingsData } = useFetch<{ settings: any }>(
+    ["settings"],
+    "settings",
+  );
+  const school = settingsData?.settings;
 
   const selSectionObj = sections.find((s) => s.id === selSection);
   const selSubjectName = subjects.find((s) => s.id === selSubject)?.name ?? "";
@@ -948,6 +940,11 @@ function TabPautaAnual({
           identifier: r.identifier,
           terms: r.terms,
         })) as StudentFichaRow[],
+        school: {
+          name: school?.schoolName,
+          address: school?.schoolAddress,
+          phone: school?.schoolPhone,
+        },
       });
       message.success("Ficha de avaliação exportada com sucesso!");
     } catch (err) {
@@ -1115,7 +1112,7 @@ function TabPautaAnual({
       >
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <Text style={{ fontWeight: 700, fontSize: 15 }}>
-            Escola Comunitária da A.M.S — Ficha de Avaliação
+            {school?.schoolName ?? "Escola"} — Ficha de Avaliação
           </Text>
         </div>
         <Row gutter={[16, 12]} align="bottom">
@@ -1154,7 +1151,7 @@ function TabPautaAnual({
           <Col
             xs={24}
             md={8}
-            style={{ display: "flex", alignItems: "flex-end" }}
+            style={{ display: "flex", alignItems: "flex-end", gap: 8 }}
           >
             <Button
               type="primary"
@@ -1162,9 +1159,26 @@ function TabPautaAnual({
               loading={exporting}
               disabled={rows.length === 0}
               onClick={handleExport}
-              style={{ width: "100%" }}
+              style={{ flex: 1 }}
             >
-              Exportar Ficha (Excel)
+              Excel
+            </Button>
+            <Button
+              icon={<FilePdfOutlined />}
+              disabled={!selSection || !selSubject}
+              onClick={async () => {
+                try {
+                  await downloadFile(
+                    `/reports/ficha-anual.pdf?sectionId=${selSection}&subjectId=${selSubject}`,
+                    "ficha-anual.pdf",
+                  );
+                } catch {
+                  message.error("Não foi possível gerar o PDF.");
+                }
+              }}
+              style={{ flex: 1 }}
+            >
+              PDF
             </Button>
           </Col>
         </Row>
@@ -1495,8 +1509,8 @@ export default function TeacherMarks() {
             Gestão de Notas
           </Title>
           <Text type="secondary">
-            ACS (Avaliações Contínuas) · ACP (Avaliações com Prova) · MT (Média
-            Trimestral) · MA (Média Anual)
+            ACS (Avaliação Contínua e Sistemática) · ACP (Avaliação Contínua e
+            Parcial) · MT (Média Trimestral) · MA (Média Anual)
           </Text>
         </div>
         <AcademicYearSelect

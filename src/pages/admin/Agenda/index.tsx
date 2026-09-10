@@ -1,7 +1,7 @@
 // pages/admin/notas/pauta.tsx
 // Pauta global por turma — notas consolidadas de todos os alunos
 // por disciplina e trimestre. Botão de exportar PDF.
-import { HomeOutlined, PrinterOutlined } from "@ant-design/icons";
+import { FilePdfOutlined, HomeOutlined } from "@ant-design/icons";
 import {
   Button,
   Card,
@@ -17,8 +17,9 @@ import {
   Typography,
   message,
 } from "antd";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import CustomBreadcrumb from "../../../components/CustomBreadcrumb";
+import { downloadFile } from "../../../utils/downloadFile";
 import { useFetch } from "../../../utils/fetch";
 import type { IAcademicYear, ILevel, ISection } from "../../../utils/type";
 
@@ -40,8 +41,6 @@ function avg(values: number[]): number | null {
 }
 
 export default function PautaGlobal() {
-  const pautaRef = useRef<HTMLDivElement>(null);
-
   const [filterYear, setFilterYear] = useState<string | undefined>();
   const [filterLevel, setFilterLevel] = useState<string | undefined>();
   const [filterSection, setFilterSection] = useState<string | undefined>();
@@ -213,13 +212,24 @@ export default function PautaGlobal() {
     identifier: e.student?.user?.identifier ?? "",
   }));
 
-  // Impressão / PDF via janela do browser
-  const handlePrint = () => {
-    if (!filterSection) {
-      message.warning("Seleccione uma turma primeiro.");
+  // PDF formal gerado no backend (identidade da escola, "Página X de Y").
+  const [downloading, setDownloading] = useState(false);
+  const handleDownloadPdf = async () => {
+    if (!filterSection || !filterTerm) {
+      message.warning("Seleccione a turma e o trimestre primeiro.");
       return;
     }
-    window.print();
+    setDownloading(true);
+    try {
+      await downloadFile(
+        `/reports/pauta-global.pdf?sectionId=${filterSection}&termId=${filterTerm}`,
+        "pauta-da-turma.pdf",
+      );
+    } catch {
+      message.error("Não foi possível gerar o PDF.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const sectionName = sectionDetail?.section?.name ?? "";
@@ -310,11 +320,12 @@ export default function PautaGlobal() {
         </Row>
         <Flex justify="flex-end" gap={8} style={{ marginTop: 12 }}>
           <Button
-            icon={<PrinterOutlined />}
-            onClick={handlePrint}
-            disabled={!filterSection}
+            icon={<FilePdfOutlined />}
+            onClick={handleDownloadPdf}
+            loading={downloading}
+            disabled={!filterSection || !filterTerm}
           >
-            Imprimir / PDF
+            Descarregar PDF
           </Button>
         </Flex>
       </Card>
@@ -331,8 +342,8 @@ export default function PautaGlobal() {
 
       {filterSection && (
         <Card>
-          {/* Cabeçalho da pauta (visível na impressão) */}
-          <div ref={pautaRef} id="pauta-print">
+          {/* Cabeçalho da pauta */}
+          <div>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <Title level={4} style={{ margin: 0 }}>
                 Pauta de Avaliação — {levelName} {sectionName}
@@ -418,19 +429,6 @@ export default function PautaGlobal() {
           </div>
         </Card>
       )}
-
-      {/* CSS de impressão */}
-      <style>{`
-        @media print {
-          body > *:not(#root) { display: none !important; }
-          .ant-layout-sider, .ant-layout-header, nav, .ant-breadcrumb,
-          .ant-card:not(:has(#pauta-print)),
-          button, .ant-btn { display: none !important; }
-          #pauta-print { display: block !important; }
-          .ant-table { font-size: 11px; }
-          @page { size: A4 landscape; margin: 1cm; }
-        }
-      `}</style>
     </>
   );
 }

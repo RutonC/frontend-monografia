@@ -1,12 +1,24 @@
 // pages/student/ReportCard.tsx — Boletim/Notas do próprio aluno
-import { LockOutlined, HomeOutlined } from "@ant-design/icons";
-import { Card, Col, Empty, Row, Select, Skeleton, Tag, Typography } from "antd";
+import { FilePdfOutlined, LockOutlined, HomeOutlined } from "@ant-design/icons";
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Select,
+  Skeleton,
+  Tag,
+  Typography,
+  message,
+} from "antd";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import AcademicYearSelect from "@/components/AcademicYearSelect";
 import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMyGrades } from "@/hooks/useStudentSelf";
 import { useAuthStore } from "@/store/authStore";
+import { downloadFile } from "@/utils/downloadFile";
 import { useFetch } from "@/utils/fetch";
 
 const GRADE_TYPE_LABEL: Record<string, string> = {
@@ -169,6 +181,26 @@ export default function StudentReportCard() {
             />
           )}
           <AcademicYearSelect value={academicYearId} onChange={setAcademicYearId} />
+          {!isPending &&
+            !(data as any)?.blocked &&
+            Object.keys((data as any)?.grouped ?? {}).length > 0 && (
+              <Button
+                icon={<FilePdfOutlined />}
+                onClick={async () => {
+                  if (!studentId) return;
+                  try {
+                    await downloadFile(
+                      `/reports/boletim.pdf?studentId=${studentId}${academicYearId ? `&academicYearId=${academicYearId}` : ""}`,
+                      "boletim.pdf",
+                    );
+                  } catch {
+                    message.error("Não foi possível gerar o boletim.");
+                  }
+                }}
+              >
+                Descarregar Boletim (PDF)
+              </Button>
+            )}
         </div>
       </div>
 

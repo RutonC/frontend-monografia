@@ -2,6 +2,7 @@
 import {
   AlertOutlined,
   CopyOutlined,
+  FilePdfOutlined,
   HomeOutlined,
   UploadOutlined,
 } from "@ant-design/icons";
@@ -27,6 +28,7 @@ import CustomBreadcrumb from "@/components/CustomBreadcrumb";
 import { useMyInvoices } from "@/hooks/useStudentSelf";
 import { useAuthStore } from "@/store/authStore";
 import axiosInstance from "@/utils/axiosInstance";
+import { downloadFile } from "@/utils/downloadFile";
 import { useFetch, useMutationPost } from "@/utils/fetch";
 import { intlDate } from "@/utils/intl";
 
@@ -252,6 +254,44 @@ export default function StudentInvoices() {
                       </div>
                     </div>
                   </div>
+
+                  {(inv.payments ?? [])
+                    .filter((p: any) => p.confirmed)
+                    .map((p: any) => (
+                      <div
+                        key={p.id}
+                        style={{
+                          marginTop: 8,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          fontSize: 12,
+                        }}
+                      >
+                        <Typography.Text type="secondary">
+                          Pagamento de MZN {Number(p.amountPaid).toFixed(2)} —{" "}
+                          {intlDate(p.paymentDate)}
+                        </Typography.Text>
+                        <Button
+                          size="small"
+                          icon={<FilePdfOutlined />}
+                          onClick={async () => {
+                            try {
+                              await downloadFile(
+                                `/payments/${p.id}/recibo.pdf`,
+                                "recibo.pdf",
+                              );
+                            } catch {
+                              message.error("Não foi possível gerar o recibo.");
+                            }
+                          }}
+                        >
+                          Descarregar Recibo
+                        </Button>
+                      </div>
+                    ))}
 
                   {payable && inv.paymentReference && (
                     <div
