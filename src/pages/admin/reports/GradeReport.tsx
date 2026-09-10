@@ -4,7 +4,7 @@
 
 import {
   DownloadOutlined,
-  PrinterOutlined,
+  FilePdfOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import {
@@ -19,12 +19,15 @@ import {
   Table,
   Tabs,
   Tag,
-  Typography
+  Typography,
+  message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useRef, useState } from "react";
 import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
+import { downloadFile } from "../../../utils/downloadFile";
+import { useFetch } from "../../../utils/fetch";
 import { fetchAllPages } from "../../../utils/fetchAllPages";
 import { toGrade } from "../../../utils/toGrade";
 import type { StudentFichaRow, TermGrades } from "../../../utils/fichaExcel";
@@ -388,6 +391,11 @@ function TabFichaAnual({
   });
   const [sectionMeta, setSectionMeta] = useState<Section | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const { data: settingsData } = useFetch<{ settings: any }>(
+    ["settings"],
+    "settings",
+  );
+  const school = settingsData?.settings;
 
   const { rows, terms, loading, load } = useAnnualRows(
     filters.sectionId,
@@ -419,10 +427,13 @@ function TabFichaAnual({
         identifier: r.identifier,
         terms: r.terms,
       })) as StudentFichaRow[],
+      school: {
+        name: school?.schoolName,
+        address: school?.schoolAddress,
+        phone: school?.schoolPhone,
+      },
     });
   };
-
-  const handlePrint = () => window.print();
 
   // Colunas dinâmicas por trimestre
   const termColumns = terms.map((term, tIdx) => ({
@@ -614,7 +625,7 @@ function TabFichaAnual({
             }}
           >
             <Title level={4} style={{ margin: 0 }}>
-              Escola Comunitária da A.M.S
+              {school?.schoolName ?? "Escola"}
             </Title>
             <Text type="secondary">
               Ficha de Avaliação —{" "}
@@ -672,8 +683,21 @@ function TabFichaAnual({
             >
               Exportar Excel (Ficha Oficial)
             </Button>
-            <Button icon={<PrinterOutlined />} onClick={handlePrint}>
-              Imprimir / PDF
+            <Button
+              icon={<FilePdfOutlined />}
+              onClick={async () => {
+                if (!filters.sectionId || !filters.subjectId) return;
+                try {
+                  await downloadFile(
+                    `/reports/ficha-anual.pdf?sectionId=${filters.sectionId}&subjectId=${filters.subjectId}${filters.yearId ? `&academicYearId=${filters.yearId}` : ""}`,
+                    "ficha-anual.pdf",
+                  );
+                } catch {
+                  message.error("Não foi possível gerar o PDF.");
+                }
+              }}
+            >
+              Descarregar PDF
             </Button>
           </div>
 
@@ -779,6 +803,11 @@ function TabPautaTrimestral({
   const [terms, setTerms] = useState<Term[]>([]);
   const [rows, setRows] = useState<TermRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const { data: settingsData } = useFetch<{ settings: any }>(
+    ["settings"],
+    "settings",
+  );
+  const school = settingsData?.settings;
 
   // Trimestres baseados no ano
   useEffect(() => {
@@ -878,7 +907,17 @@ function TabPautaTrimestral({
           mt !== null ? (mt >= 10 ? "Positiva" : "Negativa") : "—",
         ];
       });
-      const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+      const contactos = [school?.schoolAddress, school?.schoolPhone]
+        .filter(Boolean)
+        .join(" · ");
+      const ws = XLSX.utils.aoa_to_sheet([
+        [school?.schoolName || "Escola"],
+        ...(contactos ? [[contactos]] : []),
+        [`Pauta Trimestral — ${subjectName} · ${termName}`],
+        [],
+        header,
+        ...data,
+      ]);
       ws["!cols"] = [
         { wch: 4 },
         { wch: 28 },
@@ -1096,8 +1135,21 @@ function TabPautaTrimestral({
             >
               Exportar Excel
             </Button>
-            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-              Imprimir / PDF
+            <Button
+              icon={<FilePdfOutlined />}
+              onClick={async () => {
+                if (!filters.sectionId || !filters.subjectId || !selTerm) return;
+                try {
+                  await downloadFile(
+                    `/reports/pauta-trimestral.pdf?sectionId=${filters.sectionId}&subjectId=${filters.subjectId}&termId=${selTerm}`,
+                    "pauta-trimestral.pdf",
+                  );
+                } catch {
+                  message.error("Não foi possível gerar o PDF.");
+                }
+              }}
+            >
+              Descarregar PDF
             </Button>
           </div>
 
@@ -1369,11 +1421,21 @@ function TabBoletimAluno({
             <Col xs={24} md={6}>
               <Form.Item label=" " style={{ marginBottom: 0 }}>
                 <Button
-                  icon={<PrinterOutlined />}
-                  onClick={() => window.print()}
+                  icon={<FilePdfOutlined />}
                   style={{ width: "100%" }}
+                  onClick={async () => {
+                    if (!selStudent) return;
+                    try {
+                      await downloadFile(
+                        `/reports/boletim.pdf?studentId=${selStudent}${filters.yearId ? `&academicYearId=${filters.yearId}` : ""}`,
+                        "boletim.pdf",
+                      );
+                    } catch {
+                      message.error("Não foi possível gerar o PDF.");
+                    }
+                  }}
                 >
-                  Imprimir / PDF
+                  Descarregar PDF
                 </Button>
               </Form.Item>
             </Col>

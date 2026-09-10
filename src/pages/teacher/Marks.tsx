@@ -5,6 +5,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  FilePdfOutlined,
   LockOutlined,
   SaveOutlined,
   TableOutlined,
@@ -36,6 +37,8 @@ import { useLocation } from "react-router-dom";
 import AcademicYearSelect from "../../components/AcademicYearSelect";
 import PageLoader from "../../components/PageLoader";
 import { api, useAuthStore } from "../../store/authStore";
+import { downloadFile } from "../../utils/downloadFile";
+import { useFetch } from "../../utils/fetch";
 import {
   type StudentFichaRow,
   type TermGrades,
@@ -853,6 +856,11 @@ function TabPautaAnual({
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const subjects = subjectsForSection(sections, selSection);
+  const { data: settingsData } = useFetch<{ settings: any }>(
+    ["settings"],
+    "settings",
+  );
+  const school = settingsData?.settings;
 
   const selSectionObj = sections.find((s) => s.id === selSection);
   const selSubjectName = subjects.find((s) => s.id === selSubject)?.name ?? "";
@@ -932,6 +940,11 @@ function TabPautaAnual({
           identifier: r.identifier,
           terms: r.terms,
         })) as StudentFichaRow[],
+        school: {
+          name: school?.schoolName,
+          address: school?.schoolAddress,
+          phone: school?.schoolPhone,
+        },
       });
       message.success("Ficha de avaliação exportada com sucesso!");
     } catch (err) {
@@ -1099,7 +1112,7 @@ function TabPautaAnual({
       >
         <div style={{ textAlign: "center", marginBottom: 12 }}>
           <Text style={{ fontWeight: 700, fontSize: 15 }}>
-            Escola Comunitária da A.M.S — Ficha de Avaliação
+            {school?.schoolName ?? "Escola"} — Ficha de Avaliação
           </Text>
         </div>
         <Row gutter={[16, 12]} align="bottom">
@@ -1138,7 +1151,7 @@ function TabPautaAnual({
           <Col
             xs={24}
             md={8}
-            style={{ display: "flex", alignItems: "flex-end" }}
+            style={{ display: "flex", alignItems: "flex-end", gap: 8 }}
           >
             <Button
               type="primary"
@@ -1146,9 +1159,26 @@ function TabPautaAnual({
               loading={exporting}
               disabled={rows.length === 0}
               onClick={handleExport}
-              style={{ width: "100%" }}
+              style={{ flex: 1 }}
             >
-              Exportar Ficha (Excel)
+              Excel
+            </Button>
+            <Button
+              icon={<FilePdfOutlined />}
+              disabled={!selSection || !selSubject}
+              onClick={async () => {
+                try {
+                  await downloadFile(
+                    `/reports/ficha-anual.pdf?sectionId=${selSection}&subjectId=${selSubject}`,
+                    "ficha-anual.pdf",
+                  );
+                } catch {
+                  message.error("Não foi possível gerar o PDF.");
+                }
+              }}
+              style={{ flex: 1 }}
+            >
+              PDF
             </Button>
           </Col>
         </Row>

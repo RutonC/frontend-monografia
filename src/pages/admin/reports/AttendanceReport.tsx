@@ -2,7 +2,7 @@
 
 import {
   DownloadOutlined,
-  PrinterOutlined,
+  FilePdfOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 import {
@@ -23,6 +23,8 @@ import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import PageLoader from "../../../components/PageLoader";
 import { api } from "../../../store/authStore";
+import { downloadFile } from "../../../utils/downloadFile";
+import { useFetch } from "../../../utils/fetch";
 import { fetchAllPages } from "../../../utils/fetchAllPages";
 
 const { Text } = Typography;
@@ -83,6 +85,11 @@ export default function AttendanceReport() {
   const [rows, setRows] = useState<AttRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
+  const { data: settingsData } = useFetch<{ settings: any }>(
+    ["settings"],
+    "settings",
+  );
+  const school = settingsData?.settings;
 
   useEffect(() => {
     Promise.all([
@@ -235,7 +242,18 @@ export default function AttendanceReport() {
             : "Crítico",
       ]);
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+      const termName2 = terms.find((t) => t.id === selTerm)?.name ?? "Anual";
+      const contactos = [school?.schoolAddress, school?.schoolPhone]
+        .filter(Boolean)
+        .join(" · ");
+      const ws = XLSX.utils.aoa_to_sheet([
+        [school?.schoolName || "Escola"],
+        ...(contactos ? [[contactos]] : []),
+        [`Relatório de Assiduidade — ${termName2}`],
+        [],
+        header,
+        ...data,
+      ]);
       ws["!cols"] = [
         { wch: 4 },
         { wch: 28 },
@@ -489,8 +507,24 @@ export default function AttendanceReport() {
             >
               Exportar Excel
             </Button>
-            <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-              Imprimir / PDF
+            <Button
+              icon={<FilePdfOutlined />}
+              onClick={async () => {
+                if (!selSection) return;
+                const q = new URLSearchParams({ sectionId: selSection });
+                if (selTerm) q.set("termId", selTerm);
+                if (selSubject) q.set("subjectId", selSubject);
+                try {
+                  await downloadFile(
+                    `/reports/assiduidade.pdf?${q}`,
+                    "relatorio-assiduidade.pdf",
+                  );
+                } catch {
+                  message.error("Não foi possível gerar o PDF.");
+                }
+              }}
+            >
+              Descarregar PDF
             </Button>
           </div>
 

@@ -2,7 +2,13 @@
 // Pagamentos auto-reportados por encarregados/alunos (referência ou
 // depósito), à espera de confirmação da Secretária/Financeiro.
 // Partilhado entre os menus de Secretária e Financeiro.
-import { CheckOutlined, FileSearchOutlined, HomeOutlined, UnlockOutlined } from "@ant-design/icons";
+import {
+  CheckOutlined,
+  FilePdfOutlined,
+  FileSearchOutlined,
+  HomeOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import {
   Avatar,
   Button,
@@ -20,6 +26,7 @@ import { useState } from "react";
 import CustomBreadcrumb from "../../components/CustomBreadcrumb";
 import ResponsiveTable from "../../components/ResponsiveTable";
 import { useAuthStore } from "../../store/authStore";
+import { downloadFile } from "../../utils/downloadFile";
 import { useFetch, useMutationPatch } from "../../utils/fetch";
 import { intl } from "../../utils/intl";
 
@@ -90,6 +97,32 @@ export default function PendingConfirmations() {
           await mutateAsyncPatch({ id, urlParams: "confirm", body: {} });
           message.success("Pagamento confirmado.");
           refetch();
+          Modal.success({
+            title: "Pagamento confirmado",
+            content: "Já pode emitir o recibo formal deste pagamento.",
+            okText: "Fechar",
+            footer: (_, { OkBtn }) => (
+              <Space>
+                <Button
+                  type="primary"
+                  icon={<FilePdfOutlined />}
+                  onClick={async () => {
+                    try {
+                      await downloadFile(
+                        `/payments/${id}/recibo.pdf`,
+                        "recibo.pdf",
+                      );
+                    } catch {
+                      message.error("Não foi possível gerar o recibo.");
+                    }
+                  }}
+                >
+                  Descarregar Recibo
+                </Button>
+                <OkBtn />
+              </Space>
+            ),
+          });
         } catch (error: any) {
           message.error(
             error?.response?.data?.message ??
